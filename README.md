@@ -43,7 +43,7 @@ pip install numpy pandas scipy matplotlib seaborn tifffile scikit-image opencv-p
 ---
 
 ### 2. Segmentación Mitocondrial
-Este script automatiza la ejecución de la pipeline de Nellie sobre las secuencias temporales correspondientes a los planos focales individuales (Z0, Z1 y Z2). Localiza de forma recursiva los archivos y ejecuta las etapas de preprocesado, segmentación, reconstrucción de la red mitocondrial, tracking, reasignación de vóxeles y extracción jerárquica de características correspondientes a Nellie. 
+Este script automatiza la ejecución de la pipeline de Nellie sobre las secuencias temporales obtenidas mediante el microscopio confocal de fluorescencia correspondientes a los planos focales individuales (Z0, Z1 y Z2). Localiza de forma recursiva los archivos y ejecuta las etapas de preprocesado, segmentación, reconstrucción de la red mitocondrial, tracking, reasignación de vóxeles y extracción jerárquica de características correspondientes a Nellie. 
 
 Nellie\nellie\Segmentación Mitocondrial Nellie.py
 

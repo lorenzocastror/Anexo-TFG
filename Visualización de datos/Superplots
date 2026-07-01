@@ -3,11 +3,23 @@
 GENERADOR UNIFICADO DE SUPERPLOTS (Análisis Global y Controles)
 ========================================================================
 El presente módulo unifica la generación de todos los SuperPlots del
-análisis mitocondrial. Genera automáticamente dos visualizaciones:
-  1. Análisis Global (Control vs siRNA)
-  2. Estabilidad de Controles (Controles desagregados)
+análisis mitocondrial. Para cada variable de interés (Área, Distancia,
+Radial Bias, Ratios) extrae los datos de sus respectivos archivos y 
+genera automáticamente dos visualizaciones independientes:
 
-*VERSIÓN CON NORMALIZACIÓN AGRESIVA DE PALETA DE COLORES*
+  1. Análisis Global: Compara el 'Control_Global' unificado frente a
+     los grupos con silenciamiento (si_24H, si_48H, si_72H).
+  2. Estabilidad de Controles: Aísla y desagrega únicamente los grupos
+     control independientes (Control_24H, Control_48H, Control_72H)
+     para evaluar la varianza inter-temporal y estabilidad basal.
+
+La figura se compone de dos capas superpuestas:
+  · Capa 1 (fondo): mediciones individuales (stripplot semitransparente).
+  · Capa 2 (superior): media por réplica biológica (swarmplot).
+
+La paleta de colores se genera una única vez a partir del archivo de
+métricas maestro, garantizando que a cada vídeo le corresponde el mismo
+color en todas las figuras.
 ========================================================================
 """
 
@@ -19,6 +31,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 
+# Se suprimen los avisos estéticos de las bibliotecas para mantener
+# la consola limpia durante la ejecución
 warnings.filterwarnings('ignore')
 
 # ====================================================================
@@ -38,36 +52,34 @@ if not os.path.exists(CARPETA_SALIDA):
 # ====================================================================
 
 COLUMNA_VIDEO = "Nombre del vídeo"
-COLUMNA_NORMALIZADA = "Video_Normalizado"
 
 ORDEN_GRUPOS_GLOBAL = ["Control_Global", "si_24H", "si_48H", "si_72H"]
 ORDEN_GRUPOS_CONTROLES = ["Control_24H", "Control_48H", "Control_72H"]
 
-
 # ====================================================================
-# 3. FUNCIÓN DE NORMALIZACIÓN AGRESIVA
+# 3. FUNCIÓN DE NORMALIZACIÓN DE NOMENCLATURA
 # ====================================================================
 
 def normalizar_nombre_video(nombre: str) -> str:
     """
-    Corta de forma agresiva cualquier sufijo, extensión o espacio para 
-    garantizar que el mismo vídeo se llame EXACTAMENTE igual en todos 
-    los excels, forzando además todo a minúsculas.
+    Limpia extensiones y sufijos residuales de los nombres de los vídeos 
+    para garantizar el cruce exacto con la paleta de colores global, 
+    independientemente del pipeline o Excel del que provengan.
     """
-    nombre = str(nombre).strip()
+    nombre = str(nombre)
+    # Eliminar cualquier extensión de archivo al final (.tif, .xlsx, .csv)
+    nombre = re.sub(r'\.[a-zA-Z0-9]+$', '', nombre)
     
-    # Lista de palabras a partir de las cuales cortaremos el string
-    palabras_corte = [
-        "_Matriz", "_Tracking", "_Fusionado", " Tracking", " Matriz", 
-        "_MIP", "_Resultados", ".tif", ".xlsx", ".csv"
+    # Eliminar sufijos generados durante las etapas de procesamiento
+    sufijos_residuales = [
+        "_Matriz_Limpia_Final",
+        "_Tracking_Trackastra_3CAPAS_Fondo_lng",
+        "_Fusionado_3_Capas_Clusterizado"
     ]
-    
-    for palabra in palabras_corte:
-        if palabra in nombre:
-            nombre = nombre.split(palabra)[0] # Nos quedamos solo con lo que hay antes
-            
-    return nombre.strip().lower()
-
+    for sufijo in sufijos_residuales:
+        nombre = nombre.replace(sufijo, "")
+        
+    return nombre.strip()
 
 # ====================================================================
 # 4. PALETA DE COLORES MAESTRA
@@ -76,11 +88,10 @@ def normalizar_nombre_video(nombre: str) -> str:
 print("Construyendo paleta de colores maestra...")
 
 df_maestro = pd.read_excel(ARCHIVO_MAESTRO, sheet_name="Métricas por Track")
+# Se normalizan los nombres base para crear las claves maestras de color
+df_maestro[COLUMNA_VIDEO] = df_maestro[COLUMNA_VIDEO].apply(normalizar_nombre_video)
 
-# Aplicamos la normalización para extraer los nombres puros
-df_maestro[COLUMNA_NORMALIZADA] = df_maestro[COLUMNA_VIDEO].apply(normalizar_nombre_video)
-
-videos_maestro = df_maestro[COLUMNA_NORMALIZADA].unique()
+videos_maestro = df_maestro[COLUMNA_VIDEO].unique()
 paleta_maestra = dict(zip(videos_maestro, sns.color_palette("husl", len(videos_maestro))))
 
 
@@ -118,7 +129,7 @@ VARIABLES_A_GRAFICAR = {
         "hoja":           None,  
         "etiqueta_y":     "Ratio de Movimiento",
         "titulo_global":  "SuperPlot: Ratio de Movilidad Mitocondrial",
-        "titulo_control": "SuperPlot: Estabilidad del Ratio de Movimiento\nen Grupos Control",
+        "titulo_control": "SuperPlot: Estabilidad del Ratio\nen Grupos Control",
         "ylim_bottom":    0
     },
 }
@@ -129,7 +140,10 @@ VARIABLES_A_GRAFICAR = {
 # ====================================================================
 
 def extraer_grupo_exacto(nombre_video: str) -> str:
-    """Identifica el grupo exacto desde el nombre (ignorando mayúsculas/minúsculas)."""
+    """
+    Identifica a qué grupo exacto pertenece la observación leyendo 
+    directamente el nombre del archivo del vídeo.
+    """
     nombre_low = str(nombre_video).lower()
     if "control" in nombre_low:
         if "24h" in nombre_low: return "Control_24H"
@@ -145,25 +159,28 @@ def extraer_grupo_exacto(nombre_video: str) -> str:
 def plotear_y_guardar(df_plot: pd.DataFrame, orden_eje: list, variable: str, 
                       titulo: str, etiqueta_y: str, ylim_bottom, nombre_salida: str, 
                       paleta_local: dict) -> None:
-                      
+    """
+    Motor de renderizado gráfico unificado. Genera y exporta el SuperPlot final.
+    """
     df_medias = (
-        df_plot.groupby(["Grupo_Analisis", COLUMNA_NORMALIZADA], as_index=False)
+        df_plot.groupby(["Grupo_Analisis", COLUMNA_VIDEO], as_index=False)
                .agg({variable: "mean"})
     )
 
     plt.figure(figsize=(12, 10))
     sns.set_theme(style="whitegrid", context="poster")
 
-    # Usamos COLUMNA_NORMALIZADA para el "hue", forzando que busque en la paleta local
+    # Capa 1: Representación de observaciones individuales (alta transparencia)
     sns.stripplot(
-        x="Grupo_Analisis", y=variable, hue=COLUMNA_NORMALIZADA,
+        x="Grupo_Analisis", y=variable, hue=COLUMNA_VIDEO,
         data=df_plot, palette=paleta_local,
         alpha=0.3, size=6, jitter=0.3, zorder=1,
         order=orden_eje
     )
 
+    # Capa 2: Representación de valores medios por réplica biológica
     sns.swarmplot(
-        x="Grupo_Analisis", y=variable, hue=COLUMNA_NORMALIZADA,
+        x="Grupo_Analisis", y=variable, hue=COLUMNA_VIDEO,
         data=df_medias, palette=paleta_local,
         size=18, edgecolor="black", linewidth=2.5, zorder=2,
         order=orden_eje
@@ -188,6 +205,10 @@ def plotear_y_guardar(df_plot: pd.DataFrame, orden_eje: list, variable: str,
 
 
 def procesar_variable(variable: str, config: dict, paleta_global: dict) -> None:
+    """
+    Carga los datos de una variable, estandariza los grupos y manda a generar 
+    tanto el gráfico Global como el de Estabilidad de Controles.
+    """
     kwargs_excel = {"sheet_name": config["hoja"]} if config["hoja"] else {}
     try:
         df = pd.read_excel(config["archivo"], **kwargs_excel)
@@ -195,30 +216,27 @@ def procesar_variable(variable: str, config: dict, paleta_global: dict) -> None:
         print(f"  [!] Archivo no encontrado: {config['archivo']}. Variable omitida.")
         return
 
-    # Si falta la columna del vídeo, el script no puede continuar
-    if COLUMNA_VIDEO not in df.columns:
-        print(f"  [!] No se encontró la columna '{COLUMNA_VIDEO}' en los datos de {variable}.")
-        return
-
-    # NORMALIZAMOS LOS NOMBRES ANTES DE HACER NADA
-    df[COLUMNA_NORMALIZADA] = df[COLUMNA_VIDEO].apply(normalizar_nombre_video)
+    # Se normalizan inmediatamente los nombres de los vídeos del Excel cargado
+    if COLUMNA_VIDEO in df.columns:
+        df[COLUMNA_VIDEO] = df[COLUMNA_VIDEO].apply(normalizar_nombre_video)
     
+    # Eliminar nulos de la variable objetivo
     df = df.dropna(subset=[variable])
     if df.empty:
         print(f"  [!] Sin datos válidos para '{variable}'. Variable omitida.")
         return
 
-    df["Grupo_Base"] = df[COLUMNA_NORMALIZADA].apply(extraer_grupo_exacto)
+    # Asignar grupo base estricto desde el nombre del vídeo
+    df["Grupo_Base"] = df[COLUMNA_VIDEO].apply(extraer_grupo_exacto)
 
     # --- Construcción de la paleta local ---
-    videos_presentes = df[COLUMNA_NORMALIZADA].unique()
+    videos_presentes = df[COLUMNA_VIDEO].unique()
     videos_nuevos    = [v for v in videos_presentes if v not in paleta_global]
     
     paleta_local = {v: paleta_global[v] for v in videos_presentes if v in paleta_global}
     
-    # CHIVATO: Si hay vídeos que no han enganchado con la paleta maestra, te avisará por la terminal
+    # Si aun así hubiera algún vídeo completamente nuevo, se le asigna color sin romper el código
     if videos_nuevos:
-        print(f"  [⚠️ AVISO] Se han detectado vídeos con nombres distintos al archivo Maestro:\n   -> {videos_nuevos}")
         colores_extra = sns.color_palette("husl", len(videos_nuevos))
         paleta_local.update(dict(zip(videos_nuevos, colores_extra)))
 
@@ -227,7 +245,7 @@ def procesar_variable(variable: str, config: dict, paleta_global: dict) -> None:
     # =================================================================
     df_global = df.copy()
     
-    mask_control = df_global["Grupo_Base"].str.startswith("control")
+    mask_control = df_global["Grupo_Base"].str.startswith("Control")
     df_global.loc[mask_control, "Grupo_Base"] = "Control_Global"
     
     df_global["Grupo_Analisis"] = df_global["Grupo_Base"]

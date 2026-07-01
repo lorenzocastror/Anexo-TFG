@@ -10,7 +10,6 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 - Python 3.11
 - CUDA (opcional para Trackastra)
-- Git
 - Sistema operativo Windows (rutas configuradas para Windows)
 
 
@@ -73,7 +72,7 @@ Visualización de datos\Secuencia de Trayectorias para la memoria
 ---
 
 ### 9. Generación de los Boxplots de las Métricas Iniciales
-Este script automatiza la generación y exportación de gráficos estadísticos descriptivos mediante boxplots para la evaluación visual de las variables morfológicas y dinámicass de las poblaciones mitocondriales. 
+Este script automatiza la generación y exportación de gráficos estadísticos descriptivos mediante boxplots para la evaluación visual de las variables morfológicas y dinámicas de las poblaciones mitocondriales. 
 
 Visualización de datos\Boxplots Descriptivos
 
@@ -102,7 +101,7 @@ Histogramas Desplazamiento Mitocondrial
 ---
 
 ### 13. Obtención de la base de datos del Ratio de Movimiento
-Este script calcula ratio de movilidad mitocondrial a partir de las distribuciones de desplazamiento previamente obtenidas. El procedimiento clasifica los desplazamientos registrados en dos categorías (estáticos y móviles) utilizando un umbral espacial definido (0.2 micras) y calcula, para cada vídeo, el cociente entre ambas fracciones.
+Este script calcula el ratio de movilidad mitocondrial a partir de las distribuciones de desplazamiento previamente obtenidas. El procedimiento clasifica los desplazamientos registrados en dos categorías (estáticos y móviles) utilizando un umbral espacial definido (0.2 micras) y calcula, para cada vídeo, el cociente entre ambas fracciones.
 
 Extracción de datos\Obtención Ratios de movimiento
 

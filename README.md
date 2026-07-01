@@ -29,6 +29,7 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ---
 
+## Pipeline
 ### 1. Configuración del Entorno Virtual (Environment)
 Para garantizar la ejecución del pipeline se requiere la preparación de un entorno. La instalación de los paquetes necesarios se realiza mediante `pip` ejecutando el siguiente comando:
 
@@ -130,8 +131,7 @@ Este script exporta un Excel con la distancia media de cada mitocondria al centr
 
 ---
 
-## Estructura del Pipeline y Documentación del Código
-### 0. Requisitos y Estructura del Proyecto
+### Requisitos y Estructura del Proyecto
 
 - Python 3.11
 - CUDA (opcional para Trackastra)

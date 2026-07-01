@@ -116,7 +116,7 @@ Visualización de datos\Gráficos MSD
 ### 12. Generación de los Histogramas de Desplazamientos mitocondriales
 Este script cuantifica los desplazamientos instantáneos de las trayectorias mitocondriales obtenidas durante el seguimiento temporal. Para cada trayectoria se calcula la distancia recorrida entre fotogramas consecutivos, construyendo posteriormente histogramas individuales, por vídeo y por grupo experimental. Además, se genera un Excel que recoge la frecuencia de desplazamientos en intervalos espaciales definidos.
 
-Histogramas Desplazamiento Mitocondrial
+Visualización de datos\Histogramas Desplazamiento Mitocondrial
 
 ---
 

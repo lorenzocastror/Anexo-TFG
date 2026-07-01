@@ -1,7 +1,7 @@
 # Pipeline Automatizado para el Análisis de la Morfología y Dinámica Mitocondrial
 
 ## Introducción
-El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado MODELOS LINEALES MIXTOS PARA EL ANÁLISIS DE LA DINÁMICA MITOCONDRIAL EN CÁNCER. 
+El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado **Modelos Lineales Mixtos para el Análisis de la Dinámica Mitocondrial en Cáncer**. 
 
 ---
 

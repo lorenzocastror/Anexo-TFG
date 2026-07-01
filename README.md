@@ -5,6 +5,26 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ---
 
+## Índice del pipeline
+
+Requisitos
+1. Configuración del entorno
+2. Segmentación mitocondrial (Nellie)
+3. Unión lógica de máscaras
+4. Tracking mitocondrial (Trackastra)
+5. Unificación de resultados
+6. Obtención de métricas
+7. Obtención de métricas (>10 frames)
+8. Generación de figuras para la memoria
+9. Boxplots descriptivos
+10. SuperPlots
+11. Curvas MSD
+12. Histogramas de desplazamientos
+13. Ratio de movilidad
+14. Distancia al centro celular
+
+---
+
 ## Estructura del Pipeline y Documentación del Código
 ## Requisitos
 

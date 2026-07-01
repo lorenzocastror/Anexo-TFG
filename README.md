@@ -131,7 +131,7 @@ Este script exporta un Excel con la distancia media de cada mitocondria al centr
 
 ---
 
-### Requisitos y Estructura del Proyecto
+### Requisitos y Estructura
 
 - Python 3.11
 - CUDA (opcional para Trackastra)

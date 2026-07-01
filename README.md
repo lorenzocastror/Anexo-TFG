@@ -3,7 +3,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-ee4c2c.svg)
 ![Napari](https://img.shields.io/badge/Napari-Bioimaging-green.svg)
 ![Nellie](https://img.shields.io/badge/Nellie-Mithocondrial%20Segmentation-8a2be2.svg)
-![Trackastra](https://img.shields.io/badge/Trackastra-Transformer%20Tracking-ff8c00.svg)
+![Trackastra](https://img.shields.io/badge/Trackastra-Tracking-ff8c00.svg)
 ## Introducción
 El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado **Modelos Lineales Mixtos para el Análisis de la Dinámica Mitocondrial en Cáncer**. 
 

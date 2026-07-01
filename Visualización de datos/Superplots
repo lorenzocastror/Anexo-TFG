@@ -121,7 +121,7 @@ VARIABLES_A_GRAFICAR = {
         "hoja":           "Distancias_Medias",
         "etiqueta_y":     "Distancia Media al Centro (µm)",
         "titulo_global":  "SuperPlot: Distancia Media al Centro Celular",
-        "titulo_control": "SuperPlot: Estabilidad de Distancia\nen Grupos Control",
+        "titulo_control": "SuperPlot: Estabilidad de Distancia al Centro\nen Grupos Control",
         "ylim_bottom":    0
     },
     "Ratio_Movilidad": {
@@ -129,7 +129,7 @@ VARIABLES_A_GRAFICAR = {
         "hoja":           None,  
         "etiqueta_y":     "Ratio de Movimiento",
         "titulo_global":  "SuperPlot: Ratio de Movilidad Mitocondrial",
-        "titulo_control": "SuperPlot: Estabilidad del Ratio\nen Grupos Control",
+        "titulo_control": "SuperPlot: Estabilidad del Ratio de Movilidad\nen Grupos Control",
         "ylim_bottom":    0
     },
 }

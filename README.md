@@ -32,6 +32,19 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 - CUDA (opcional para Trackastra)
 - Sistema operativo Windows (rutas configuradas para Windows)
 
+#### Estructura del Proyecto
+
+Para la correcta ejecución del pipeline, el directorio de trabajo debe mantener la siguiente arquitectura de archivos:
+
+```text
+Videos_Mitocondrias/
+├── Project001/                               # Vídeos originales en formato TIFF (RAW)
+├── Project001 Máscaras 3 Capas lng_adaptive/ # Salidas iniciales de segmentación de Nellie
+├── Resultados Analisis_TFG/                  # Matrices consolidadas y salidas finales
+│   ├── Boxplots_Individuales/
+│   ├── Histogramas desplazamientos Control/
+│   └── SuperPlots/
+└── Python/                                   # Scripts de procesamiento (.py)
 
 ### 1. Configuración del Entorno Virtual (Environment)
 Para garantizar la ejecución del pipeline se requiere la preparación de un entorno. La instalación de los paquetes necesarios se realiza mediante `pip` ejecutando el siguiente comando:

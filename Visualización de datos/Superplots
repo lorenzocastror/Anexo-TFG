@@ -118,7 +118,7 @@ VARIABLES_A_GRAFICAR = {
         "hoja":           None,  
         "etiqueta_y":     "Ratio de Movimiento",
         "titulo_global":  "SuperPlot: Ratio de Movilidad Mitocondrial",
-        "titulo_control": "SuperPlot: Estabilidad del Ratio\nen Grupos Control",
+        "titulo_control": "SuperPlot: Estabilidad del Ratio de Movimiento\nen Grupos Control",
         "ylim_bottom":    0
     },
 }

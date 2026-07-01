@@ -1,0 +1,269 @@
+"""
+========================================================================
+GENERADOR UNIFICADO DE SUPERPLOTS (Análisis Global y Controles)
+========================================================================
+El presente módulo unifica la generación de todos los SuperPlots del
+análisis mitocondrial. Genera automáticamente dos visualizaciones:
+  1. Análisis Global (Control vs siRNA)
+  2. Estabilidad de Controles (Controles desagregados)
+
+*VERSIÓN CON NORMALIZACIÓN AGRESIVA DE PALETA DE COLORES*
+========================================================================
+"""
+
+import os
+import re
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+
+warnings.filterwarnings('ignore')
+
+# ====================================================================
+# 1. RUTAS DE ARCHIVOS
+# ====================================================================
+
+ARCHIVO_MAESTRO    = r"Videos_Mitocondrias\Resultados Analisis_TFG\Metricas_Detalladas_Mitocondrias_10_Frames_TFG.xlsx"
+ARCHIVO_DISTANCIAS = r"Videos_Mitocondrias\Resultados Analisis_TFG\Distancias_Medias_Mitocondrias.xlsx"
+ARCHIVO_RATIOS     = r"Videos_Mitocondrias\Resultados Analisis_TFG\Ratios_Movimiento\Ratios_Mitocondrias_Area_Mayor_sobre_Menor.xlsx"
+CARPETA_SALIDA     = r"Videos_Mitocondrias\Resultados Analisis_TFG\SuperPlots"
+
+if not os.path.exists(CARPETA_SALIDA):
+    os.makedirs(CARPETA_SALIDA)
+
+# ====================================================================
+# 2. PARÁMETROS COMUNES
+# ====================================================================
+
+COLUMNA_VIDEO = "Nombre del vídeo"
+COLUMNA_NORMALIZADA = "Video_Normalizado"
+
+ORDEN_GRUPOS_GLOBAL = ["Control_Global", "si_24H", "si_48H", "si_72H"]
+ORDEN_GRUPOS_CONTROLES = ["Control_24H", "Control_48H", "Control_72H"]
+
+
+# ====================================================================
+# 3. FUNCIÓN DE NORMALIZACIÓN AGRESIVA
+# ====================================================================
+
+def normalizar_nombre_video(nombre: str) -> str:
+    """
+    Corta de forma agresiva cualquier sufijo, extensión o espacio para 
+    garantizar que el mismo vídeo se llame EXACTAMENTE igual en todos 
+    los excels, forzando además todo a minúsculas.
+    """
+    nombre = str(nombre).strip()
+    
+    # Lista de palabras a partir de las cuales cortaremos el string
+    palabras_corte = [
+        "_Matriz", "_Tracking", "_Fusionado", " Tracking", " Matriz", 
+        "_MIP", "_Resultados", ".tif", ".xlsx", ".csv"
+    ]
+    
+    for palabra in palabras_corte:
+        if palabra in nombre:
+            nombre = nombre.split(palabra)[0] # Nos quedamos solo con lo que hay antes
+            
+    return nombre.strip().lower()
+
+
+# ====================================================================
+# 4. PALETA DE COLORES MAESTRA
+# ====================================================================
+
+print("Construyendo paleta de colores maestra...")
+
+df_maestro = pd.read_excel(ARCHIVO_MAESTRO, sheet_name="Métricas por Track")
+
+# Aplicamos la normalización para extraer los nombres puros
+df_maestro[COLUMNA_NORMALIZADA] = df_maestro[COLUMNA_VIDEO].apply(normalizar_nombre_video)
+
+videos_maestro = df_maestro[COLUMNA_NORMALIZADA].unique()
+paleta_maestra = dict(zip(videos_maestro, sns.color_palette("husl", len(videos_maestro))))
+
+
+# ====================================================================
+# 5. CONFIGURACIÓN DE LAS VARIABLES A REPRESENTAR
+# ====================================================================
+
+VARIABLES_A_GRAFICAR = {
+    "Mean_Area_um2": {
+        "archivo":        ARCHIVO_MAESTRO,
+        "hoja":           "Métricas por Track",
+        "etiqueta_y":     r"Área Media (µm$^2$)",
+        "titulo_global":  r"SuperPlot: Área Media (µm$^2$)",
+        "titulo_control": "SuperPlot: Estabilidad del Tamaño\nen Grupos Control",
+        "ylim_bottom":    0
+    },
+    "Radial_Bias": {
+        "archivo":        ARCHIVO_MAESTRO,
+        "hoja":           "Métricas por Track",
+        "etiqueta_y":     "Radial Bias",
+        "titulo_global":  "SuperPlot: Radial Bias",
+        "titulo_control": "SuperPlot: Estabilidad del Radial Bias\nen Grupos Control",
+        "ylim_bottom":    None  
+    },
+    "Distancia_Media_Centro_um": {
+        "archivo":        ARCHIVO_DISTANCIAS,
+        "hoja":           "Distancias_Medias",
+        "etiqueta_y":     "Distancia Media al Centro (µm)",
+        "titulo_global":  "SuperPlot: Distancia Media al Centro Celular",
+        "titulo_control": "SuperPlot: Estabilidad de Distancia\nen Grupos Control",
+        "ylim_bottom":    0
+    },
+    "Ratio_Movilidad": {
+        "archivo":        ARCHIVO_RATIOS,
+        "hoja":           None,  
+        "etiqueta_y":     "Ratio de Movimiento",
+        "titulo_global":  "SuperPlot: Ratio de Movilidad Mitocondrial",
+        "titulo_control": "SuperPlot: Estabilidad del Ratio\nen Grupos Control",
+        "ylim_bottom":    0
+    },
+}
+
+
+# ====================================================================
+# 6. FUNCIONES AUXILIARES Y DE RENDERIZADO
+# ====================================================================
+
+def extraer_grupo_exacto(nombre_video: str) -> str:
+    """Identifica el grupo exacto desde el nombre (ignorando mayúsculas/minúsculas)."""
+    nombre_low = str(nombre_video).lower()
+    if "control" in nombre_low:
+        if "24h" in nombre_low: return "Control_24H"
+        if "48h" in nombre_low: return "Control_48H"
+        if "72h" in nombre_low: return "Control_72H"
+    elif "si" in nombre_low:
+        if "24h" in nombre_low: return "si_24H"
+        if "48h" in nombre_low: return "si_48H"
+        if "72h" in nombre_low: return "si_72H"
+    return "Desconocido"
+
+
+def plotear_y_guardar(df_plot: pd.DataFrame, orden_eje: list, variable: str, 
+                      titulo: str, etiqueta_y: str, ylim_bottom, nombre_salida: str, 
+                      paleta_local: dict) -> None:
+                      
+    df_medias = (
+        df_plot.groupby(["Grupo_Analisis", COLUMNA_NORMALIZADA], as_index=False)
+               .agg({variable: "mean"})
+    )
+
+    plt.figure(figsize=(12, 10))
+    sns.set_theme(style="whitegrid", context="poster")
+
+    # Usamos COLUMNA_NORMALIZADA para el "hue", forzando que busque en la paleta local
+    sns.stripplot(
+        x="Grupo_Analisis", y=variable, hue=COLUMNA_NORMALIZADA,
+        data=df_plot, palette=paleta_local,
+        alpha=0.3, size=6, jitter=0.3, zorder=1,
+        order=orden_eje
+    )
+
+    sns.swarmplot(
+        x="Grupo_Analisis", y=variable, hue=COLUMNA_NORMALIZADA,
+        data=df_medias, palette=paleta_local,
+        size=18, edgecolor="black", linewidth=2.5, zorder=2,
+        order=orden_eje
+    )
+
+    plt.legend([], [], frameon=False)
+    plt.title(titulo, fontsize=30, fontweight="bold", pad=30)
+    plt.ylabel(etiqueta_y, fontsize=26, labelpad=20)
+    plt.xlabel("Grupos Experimentales", fontsize=26, labelpad=20)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+
+    if ylim_bottom is not None:
+        plt.ylim(bottom=ylim_bottom)
+
+    plt.tight_layout()
+    ruta_guardado = os.path.join(CARPETA_SALIDA, nombre_salida)
+    plt.savefig(ruta_guardado, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"  ✅ Guardado: {nombre_salida}")
+
+
+def procesar_variable(variable: str, config: dict, paleta_global: dict) -> None:
+    kwargs_excel = {"sheet_name": config["hoja"]} if config["hoja"] else {}
+    try:
+        df = pd.read_excel(config["archivo"], **kwargs_excel)
+    except FileNotFoundError:
+        print(f"  [!] Archivo no encontrado: {config['archivo']}. Variable omitida.")
+        return
+
+    # Si falta la columna del vídeo, el script no puede continuar
+    if COLUMNA_VIDEO not in df.columns:
+        print(f"  [!] No se encontró la columna '{COLUMNA_VIDEO}' en los datos de {variable}.")
+        return
+
+    # NORMALIZAMOS LOS NOMBRES ANTES DE HACER NADA
+    df[COLUMNA_NORMALIZADA] = df[COLUMNA_VIDEO].apply(normalizar_nombre_video)
+    
+    df = df.dropna(subset=[variable])
+    if df.empty:
+        print(f"  [!] Sin datos válidos para '{variable}'. Variable omitida.")
+        return
+
+    df["Grupo_Base"] = df[COLUMNA_NORMALIZADA].apply(extraer_grupo_exacto)
+
+    # --- Construcción de la paleta local ---
+    videos_presentes = df[COLUMNA_NORMALIZADA].unique()
+    videos_nuevos    = [v for v in videos_presentes if v not in paleta_global]
+    
+    paleta_local = {v: paleta_global[v] for v in videos_presentes if v in paleta_global}
+    
+    # CHIVATO: Si hay vídeos que no han enganchado con la paleta maestra, te avisará por la terminal
+    if videos_nuevos:
+        print(f"  [⚠️ AVISO] Se han detectado vídeos con nombres distintos al archivo Maestro:\n   -> {videos_nuevos}")
+        colores_extra = sns.color_palette("husl", len(videos_nuevos))
+        paleta_local.update(dict(zip(videos_nuevos, colores_extra)))
+
+    # =================================================================
+    # GENERACIÓN 1: GRÁFICO GLOBAL (Controles unificados vs siRNAs)
+    # =================================================================
+    df_global = df.copy()
+    
+    mask_control = df_global["Grupo_Base"].str.startswith("control")
+    df_global.loc[mask_control, "Grupo_Base"] = "Control_Global"
+    
+    df_global["Grupo_Analisis"] = df_global["Grupo_Base"]
+    df_global = df_global[df_global["Grupo_Analisis"].isin(ORDEN_GRUPOS_GLOBAL)]
+
+    if not df_global.empty:
+        nombre_salida_global = f"SuperPlot_{variable}.png"
+        plotear_y_guardar(df_plot=df_global, orden_eje=ORDEN_GRUPOS_GLOBAL, 
+                          variable=variable, titulo=config["titulo_global"], 
+                          etiqueta_y=config["etiqueta_y"], ylim_bottom=config["ylim_bottom"], 
+                          nombre_salida=nombre_salida_global, paleta_local=paleta_local)
+
+    # =================================================================
+    # GENERACIÓN 2: GRÁFICO DE CONTROLES (Solo Controles Desagregados)
+    # =================================================================
+    df_controles = df.copy()
+    
+    df_controles["Grupo_Analisis"] = df_controles["Grupo_Base"]
+    df_controles = df_controles[df_controles["Grupo_Analisis"].isin(ORDEN_GRUPOS_CONTROLES)]
+
+    if not df_controles.empty:
+        nombre_salida_controles = f"SuperPlot_SoloControles_{variable}.png"
+        plotear_y_guardar(df_plot=df_controles, orden_eje=ORDEN_GRUPOS_CONTROLES, 
+                          variable=variable, titulo=config["titulo_control"], 
+                          etiqueta_y=config["etiqueta_y"], ylim_bottom=config["ylim_bottom"], 
+                          nombre_salida=nombre_salida_controles, paleta_local=paleta_local)
+
+
+# ====================================================================
+# 7. BUCLE PRINCIPAL DE EJECUCIÓN
+# ====================================================================
+
+print("\nGenerando SuperPlots (Análisis Global y Controles)...\n")
+
+for var, cfg in VARIABLES_A_GRAFICAR.items():
+    print(f"Procesando variable: {var}")
+    procesar_variable(var, cfg, paleta_maestra)
+
+print("\nProceso unificado completado. Gráficos listos en el directorio de salida.")

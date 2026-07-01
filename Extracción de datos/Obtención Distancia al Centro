@@ -111,9 +111,26 @@ def clasificar_grupo_final(nombre_video):
     else:
         return "Sin_Clasificar"
 
-df_resultado["Grupo Final"] = df_resultado[COL_VIDEO].apply(clasificar_grupo_final)
+def determinar_procedencia(nombre_video):
+    if nombre_video.startswith("Control_24H"):
+        return "Control_24H"
+    elif nombre_video.startswith("Control_48H"):
+        return "Control_48H"
+    elif nombre_video.startswith("Control_72H"):
+        return "Control_72H"
+    elif nombre_video.startswith("si_24H"):
+        return "si_24H"
+    elif nombre_video.startswith("si_48H"):
+        return "si_48H"
+    elif nombre_video.startswith("si_72H"):
+        return "si_72H"
+    else:
+        return "Desconocida"
 
-df_final = df_resultado[[COL_VIDEO, "Grupo Final", COL_TRACK_ID, "Distancia_Media_Centro_um", "Distancia_Normalizada_Media"]]
+df_resultado["Grupo Final"] = df_resultado[COL_VIDEO].apply(clasificar_grupo_final)
+df_resultado["Procedencia"] = df_resultado[COL_VIDEO].apply(determinar_procedencia)
+
+df_final = df_resultado[[COL_VIDEO, "Grupo Final", "Procedencia", COL_TRACK_ID, "Distancia_Media_Centro_um", "Distancia_Normalizada_Media"]]
 
 df_final.to_excel(ARCHIVO_SALIDA, index=False, sheet_name="Distancias_Medias")
 print("\n✅ Proceso completado.")

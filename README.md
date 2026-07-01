@@ -18,11 +18,14 @@ pip install os glob argparse typing tifffile openpyxl cv2 warnings nellie torch 
 
 ### 2. Segmentación Mitocondrial
 Este script automatiza la ejecución de la pipeline de Nellie sobre secuencias temporales correspondientes a planos focales individuales (Z0, Z1 y Z2). Localiza de forma recursiva los archivos TIFF, configura automáticamente los metadatos necesarios (ejes, resolución espacial y temporal, canal y rango temporal) y ejecuta las etapas de preprocesado, segmentación, reconstrucción de la red mitocondrial, tracking, reasignación de vóxeles y extracción jerárquica de características. Además, permite procesar grandes conjuntos de datos de forma masiva, evitar el reprocesamiento de archivos ya analizados y comprobar previamente los archivos a procesar mediante un modo dry-run.
-Nellie\nellie\run_modificado_Z0Z1Z2.py
+
+Nellie\nellie\Segmentación Mitocondrial 
+
 ---
 
 ### 3. Unión Lógica de las Máscaras Mitocondriales
 Este script automatiza la fusión y el procesamiento de las máscaras mitocondriales generadas por Nellie en tres planos focales (Z0, Z1 y Z2). Para cada fotograma, combina las segmentaciones de los tres planos, identifica componentes conectados y aplica un algoritmo de clustering morfológico que fusiona estructuras mitocondriales próximas, preservando los objetos principales y eliminando pequeñas detecciones aisladas consideradas ruido. El procesamiento se realiza de forma masiva sobre todos los vídeos del proyecto, generando una secuencia TIFF etiquetada (2D + tiempo) para cada vídeo.
+Extracción de datos\Unión Lógica de Máscaras
 
 ---
 

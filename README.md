@@ -26,13 +26,11 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 ---
 
 ## Estructura del Pipeline y Documentación del Código
-### 0. Requisitos
+### 0. Requisitos y Estructura del Proyecto
 
 - Python 3.11
 - CUDA (opcional para Trackastra)
 - Sistema operativo Windows (rutas configuradas para Windows)
-
-#### Estructura del Proyecto
 
 Para la correcta ejecución del pipeline, el directorio de trabajo debe mantener la siguiente arquitectura de archivos:
 

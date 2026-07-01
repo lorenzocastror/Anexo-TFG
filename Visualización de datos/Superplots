@@ -116,12 +116,12 @@ VARIABLES_A_GRAFICAR = {
         "titulo_control": "SuperPlot: Estabilidad del Radial Bias\nen Grupos Control",
         "ylim_bottom":    None  
     },
-    "Distancia_Media_Centro_um": {
+    "Distancia_Normalizada_Media": {
         "archivo":        ARCHIVO_DISTANCIAS,
         "hoja":           "Distancias_Medias",
-        "etiqueta_y":     "Distancia Media al Centro (µm)",
+        "etiqueta_y":     "Distancia Media al Centro Normalizada",
         "titulo_global":  "SuperPlot: Distancia Media al Centro Celular",
-        "titulo_control": "SuperPlot: Estabilidad de Distancia al Centro\nen Grupos Control",
+        "titulo_control": "SuperPlot: Estabilidad de Distancia al Centro Normalizada\nen Grupos Control",
         "ylim_bottom":    0
     },
     "Ratio_Movilidad": {

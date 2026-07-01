@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from scipy.spatial.distance import pdist, squareform
 from scipy.stats import linregress
 import os
 import warnings
@@ -113,35 +112,6 @@ def calcular_metricas_radiales(df_traj, df_cells, pixel_size=PIXEL_SIZE, frame_i
         
     return pd.DataFrame(metrics)
 
-def calcular_clustering(df, pixel_size=PIXEL_SIZE):
-    """
-    Análisis de la topología espacial (análisis del vecino más cercano) por frame.
-    """
-    metrics = []
-    
-    for t, group in df.groupby('Frame'):
-        positions = group[['Pos_X', 'Pos_Y']].values * pixel_size
-        
-        # Requisito mínimo de elementos para la validez del cálculo topológico
-        if len(positions) < 3: 
-            continue
-            
-        # Generación de la matriz de distancias espaciales emparejadas
-        dist_matrix = squareform(pdist(positions))
-        np.fill_diagonal(dist_matrix, np.inf)
-        
-        # Extracción de la distancia al vecino más cercano (Nearest Neighbor)
-        nn_distances = np.min(dist_matrix, axis=1)
-        
-        metrics.append({
-            'Frame': t,
-            'N_Mitochondria': len(positions),
-            'Mean_NN_Distance_um': np.mean(nn_distances),
-            'Std_NN_Distance_um': np.std(nn_distances)
-        })
-        
-    return pd.DataFrame(metrics)
-
 def calcular_msd_ensemble(df, pixel_size=PIXEL_SIZE, frame_interval=FRAME_INTERVAL, max_lag=15):
     """
     Cálculo del Desplazamiento Cuadrático Medio (MSD) promediado para el conjunto poblacional (Ensemble).
@@ -207,7 +177,6 @@ def procesar_metricas_totales():
     # Inicialización de estructuras de almacenamiento de resultados
     resultados_tracks = []
     resultados_msd = []
-    resultados_clustering = []
     
     # Extracción de identificadores únicos de experimentación
     videos_unicos = df_traj_totales['Nombre del vídeo'].unique()
@@ -239,13 +208,7 @@ def procesar_metricas_totales():
         m_tracks.insert(1, 'Grupo', grupo)
         resultados_tracks.append(m_tracks)
         
-        # 3. Cuantificación de la agrupación espacial (Clustering topológico)
-        m_cluster = calcular_clustering(df_t)
-        m_cluster.insert(0, 'Nombre del vídeo', video)
-        m_cluster.insert(1, 'Grupo', grupo)
-        resultados_clustering.append(m_cluster)
-        
-        # 4. Cálculo del MSD (requiere almacenamiento independiente por su dimensionalidad temporal intrínseca)
+        # 3. Cálculo del MSD (requiere almacenamiento independiente por su dimensionalidad temporal intrínseca)
         lags, msd = calcular_msd_ensemble(df_t)
         if len(lags) > 0:
             df_msd = pd.DataFrame({'Lag_s': lags, 'MSD_um2': msd})
@@ -262,8 +225,6 @@ def procesar_metricas_totales():
     with pd.ExcelWriter(ruta_salida, engine='openpyxl') as writer:
         if resultados_tracks:
             pd.concat(resultados_tracks).to_excel(writer, sheet_name="Métricas por Track", index=False)
-        if resultados_clustering:
-            pd.concat(resultados_clustering).to_excel(writer, sheet_name="Clustering Temporal", index=False)
         if resultados_msd:
             pd.concat(resultados_msd).to_excel(writer, sheet_name="Curvas MSD", index=False)
             

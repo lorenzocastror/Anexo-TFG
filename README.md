@@ -3,15 +3,45 @@
 ## Introducción
 El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado **Modelos Lineales Mixtos para el Análisis de la Dinámica Mitocondrial en Cáncer**. 
 
+Microscopía
+      │
+      ▼
+Segmentación (Nellie)
+      │
+      ▼
+Fusión de máscaras
+      │
+      ▼
+Tracking (Trackastra)
+      │
+      ▼
+Unificación de datos
+      │
+      ▼
+Cálculo de métricas
+      │
+      ▼
+Análisis estadístico
+      │
+      ▼
+Visualización
+
 ---
 
 ## Estructura del Pipeline y Documentación del Código
+## Requisitos
+
+- Python 3.11
+- CUDA (opcional para Trackastra)
+- Git
+- Sistema operativo Windows (rutas configuradas para Windows)
+
 
 ### 1. Configuración del Entorno Virtual (Environment)
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
 
 ```bash
-pip install os glob argparse typing tifffile openpyxl cv2 warnings nellie torch trackastra napari openpyxl numpy pandas scikit-image scipy tqdm matplotlib opencv seaborn
+pip install numpy pandas scipy matplotlib seaborn tifffile scikit-image opencv-python openpyxl tqdm napari torch trackastra nellie
 ```
 
 ---

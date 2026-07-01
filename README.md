@@ -26,7 +26,7 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 ---
 
 ## Estructura del Pipeline y Documentación del Código
-## Requisitos
+### 0. Requisitos
 
 - Python 3.11
 - CUDA (opcional para Trackastra)

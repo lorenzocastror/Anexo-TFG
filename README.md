@@ -7,7 +7,7 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ## Índice del pipeline
 
-    Requisitos
+Requisitos
 1. Configuración del entorno
 2. Segmentación mitocondrial (Nellie)
 3. Unión lógica de máscaras

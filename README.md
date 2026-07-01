@@ -72,10 +72,10 @@ Visualización de datos\Boxplots Descriptivos
 
 ---
 
-### 10. Generación de Superplots para los grupos Control
+### 10. Generación de Superplots
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
 
-Visualización de datos\Superplot Grupos Control
+Visualización de datos\Superplots
 
 ---
 
@@ -104,12 +104,5 @@ Extracción de datos\Obtención Ratios de movimiento
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
 
 Extracción de datos\Obtención Distancia al Centro
-
----
-
-### 15. Generación de Superplots
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
-
-Visualización de datos\Superplot Grupos
 
 ---

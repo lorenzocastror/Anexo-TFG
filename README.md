@@ -45,6 +45,9 @@ Videos_Mitocondrias/
 │   ├── Histogramas desplazamientos Control/
 │   └── SuperPlots/
 └── Python/                                   # Scripts de procesamiento (.py)
+```
+
+---
 
 ### 1. Configuración del Entorno Virtual (Environment)
 Para garantizar la ejecución del pipeline se requiere la preparación de un entorno. La instalación de los paquetes necesarios se realiza mediante `pip` ejecutando el siguiente comando:

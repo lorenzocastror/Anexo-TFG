@@ -12,6 +12,7 @@ Para garantizar la reproducibilidad del pipeline y la correcta ejecución de tod
 
 ```bash
 pip install nellie torch trackastra napari openpyxl numpy pandas scikit-image scipy tqdm matplotlib opencv-python
+```bash
 
 ---
 

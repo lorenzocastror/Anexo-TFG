@@ -45,63 +45,64 @@ Extracción de datos\Unificación Resultados
 ---
 
 ### 6. Obtención de la base de datos con las Métricas Iniciales
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script automatiza el cálculo y la extracción detallada de métricas cinemáticas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, computa el Desplazamiento Cuadrático Medio poblacional (MSD) para caracterizar de forma global el comportamiento difusivo o de transporte activo de la muestra. El procesamiento incluye un riguroso control de calidad estructural para purgar posibles registros temporales duplicados y exporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD, optimizado para su posterior evaluación estadística.
 
 Extracción de datos\Obtención Métricas
 
 ---
 
-### 7. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias <10 frames
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+### 7. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias >10 frames
+Este script automatiza el cálculo y la extracción detallada de métricas cinemáticas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados para mitocondrias que tienen trayectorias >10 frames. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, computa el Desplazamiento Cuadrático Medio poblacional (MSD) para caracterizar de forma global el comportamiento difusivo o de transporte activo de la muestra. El procesamiento incluye un riguroso control de calidad estructural para purgar posibles registros temporales duplicados y exporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD, optimizado para su posterior evaluación estadística.
 
 Extracción de datos\Obtención Métricas >10 frames
 
 ---
 
 ### 8. Generación de Secuencias Visuales para la memoria
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script genera una figura representativa de la dinámica mitocondrial a partir de secuencias de microscopía y los resultados del seguimiento obtenido con Trackastra. Para varios instantes temporales seleccionados, superpone la imagen de fluorescencia original, las máscaras de las mitocondrias segmentadas y las trayectorias acumuladas de los orgánulos, restringiendo el análisis a las mitocondrias contenidas dentro de la célula mediante una máscara celular. Finalmente, crea un panel comparativo con barra de escala y anotaciones temporales, listo para su utilización en publicaciones o presentaciones científicas.
 
 Visualización de datos\Secuencia de Trayectorias para la memoria
 
 ---
 
 ### 9. Generación de los Boxplots de las Métricas Iniciales
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script automatiza la generación y exportación de gráficos estadísticos descriptivos mediante boxplots para la evaluación visual de las variables morfológicas y dinámicass de las poblaciones mitocondriales. 
 
 Visualización de datos\Boxplots Descriptivos
 
 ---
 
 ### 10. Generación de Superplots
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script genera automáticamente SuperPlots para las principales variables del análisis mitocondrial, produciendo tanto comparaciones globales entre condiciones experimentales como análisis independientes de la estabilidad de los grupos control. Para cada variable se generan dos figuras: una comparando el grupo control con los grupos silenciados y otra evaluando exclusivamente la variabilidad entre los distintos controles temporales.
+
 
 Visualización de datos\Superplots
 
 ---
 
 ### 11. Generación de los Gráficos del MSD
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script genera figuras científicas de las curvas de Desplazamiento Cuadrático Medio (MSD, Mean Squared Displacement) para evaluar la dinámica mitocondrial en los distintos grupos experimentales. A partir de las curvas promedio obtenidas para cada condición, calcula el exponente de difusión (α) mediante una regresión lineal en escala logarítmica sobre los primeros retardos temporales, permitiendo caracterizar el tipo de movimiento de las mitocondrias. Además, estima una aproximación del ruido de localización a partir del intercepto de la regresión y exporta estos valores a un archivo Excel. El script genera tanto gráficos individuales para cada grupo experimental como una figura comparativa con todas las curvas MSD, utilizando un formato optimizado para publicaciones científicas mediante Matplotlib.
 
 Visualización de datos\Gráficos MSD
 
 ---
 
 ### 12. Generación de los Histogramas de Desplazamientos mitocondriales
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script cuantifica los desplazamientos instantáneos (steps) de las trayectorias mitocondriales obtenidas durante el seguimiento temporal y genera un análisis estadístico completo de su distribución. Para cada trayectoria se calcula la distancia recorrida entre fotogramas consecutivos, construyendo posteriormente histogramas individuales, por vídeo y por grupo experimental. Además, se genera una matriz resumen en un Excel que recoge la frecuencia de desplazamientos en intervalos espaciales definidos.
 
 Histogramas Desplazamiento Mitocondrial
 
 ---
 
 ### 13. Obtención de la base de datos del Ratio de Movimiento
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script calcula ratio de movilidad mitocondrial a partir de las distribuciones de desplazamiento previamente obtenidas. El procedimiento clasifica los desplazamientos registrados en dos categorías (estáticos y móviles) utilizando un umbral espacial definido (0.2 micras) y calcula, para cada vídeo, el cociente entre ambas fracciones.
 
 Extracción de datos\Obtención Ratios de movimiento
 
 ---
 
 ### 14. Obtención de la base de datos de la Distancia al Centro
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Este script calcula la distancia media de cada mitocondria al centro de masa celular a lo largo de su trayectoria, utilizando simultáneamente la información de las trayectorias mitocondriales y de la segmentación celular. Además de la distancia absoluta (µm), el algoritmo calcula una distancia normalizada respecto al tamaño celular, permitiendo comparar células de diferentes dimensiones mediante una métrica adimensional. El resultado es una tabla donde cada fila representa una mitocondria, incluyendo su distancia media al centro celular y la clasificación experimental correspondiente.
 
 Extracción de datos\Obtención Distancia al Centro
 

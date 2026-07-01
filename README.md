@@ -44,7 +44,8 @@ Videos_Mitocondrias/
 │   └── SuperPlots/
 └── Python/                                   # Scripts de procesamiento (.py)
 ```
-> ⚠️ **Nota de Configuración Local:** Los módulos de preprocesamiento e integración automática contienen variables globales de ruta asociadas al entorno de almacenamiento local del autor. Antes de ejecutar el pipeline en una nueva estación de trabajo, verifique las rutas declaradas en las cabeceras de configuración de cada script `.py`.
+⚠️ Los módulos de preprocesamiento e integración automática contienen variables ruta asociadas al entorno de almacenamiento local del autor. Antes de ejecutar el pipeline en una nueva estación de trabajo, verifique las rutas declaradas en las cabeceras de configuración de cada script.
+
 ---
 
 ### 1. Configuración del Entorno Virtual (Environment)

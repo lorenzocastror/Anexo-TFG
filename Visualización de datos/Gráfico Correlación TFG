@@ -107,7 +107,7 @@ def main():
     # 4. Procesamiento del ratio de movilidad
     col_ratio_real = encontrar_columna(df_ratio, POSIBLES_NOMBRES_RATIO)
     if col_ratio_real:
-        mapeo_nombres_finales[col_ratio_real] = "Ratio de Movilidad"
+        mapeo_nombres_finales[col_ratio_real] = "Ratio de Movimiento"
         df_ratio_procesado = df_ratio[[col_video, col_track, col_ratio_real]]
     else:
         print("❌ Error: No se encontró la columna del Ratio.")

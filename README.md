@@ -60,7 +60,7 @@ Extracción de datos\Obtención Métricas
 ### 7. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias >10 frames
 Este script constituye una variante del cálculo de métricas descrito anteriormente, restringiendo el análisis exclusivamente a trayectorias con una duración superior a 10 fotogramas, con el objetivo de eliminar trayectorias cortas y aumentar la robustez de los análisis cinemáticos posteriores.
 
-Extracción de datos\Obtención Métricas >10 frames
+Extracción de datos\Obtención Métricas más de 10 frames
 
 ---
 

@@ -12,3 +12,28 @@ Para garantizar la reproducibilidad del pipeline y la correcta ejecución de tod
 
 ```bash
 pip install nellie torch trackastra napari openpyxl numpy pandas scikit-image scipy tqdm matplotlib opencv-python
+
+---
+
+### 2. Configuración del Entorno Virtual (Environment)
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+---
+
+### 3. Configuración del Entorno Virtual (Environment)
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+---
+
+### 4. Configuración del Entorno Virtual (Environment)
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+---
+
+### 5. Configuración del Entorno Virtual (Environment)
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+---
+
+### 6. Configuración del Entorno Virtual (Environment)
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:

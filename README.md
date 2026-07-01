@@ -3,29 +3,6 @@
 ## Introducción
 El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado **Modelos Lineales Mixtos para el Análisis de la Dinámica Mitocondrial en Cáncer**. 
 
-Microscopía
-      │
-      ▼
-Segmentación (Nellie)
-      │
-      ▼
-Fusión de máscaras
-      │
-      ▼
-Tracking (Trackastra)
-      │
-      ▼
-Unificación de datos
-      │
-      ▼
-Cálculo de métricas
-      │
-      ▼
-Análisis estadístico
-      │
-      ▼
-Visualización
-
 ---
 
 ## Estructura del Pipeline y Documentación del Código
@@ -82,7 +59,7 @@ Extracción de datos\Obtención Métricas
 ---
 
 ### 7. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias >10 frames
-Este script automatiza el cálculo y la extracción detallada de métricas cinemáticas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados para mitocondrias que tienen trayectorias >10 frames. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, computa el Desplazamiento Cuadrático Medio poblacional (MSD) para caracterizar de forma global el comportamiento difusivo o de transporte activo de la muestra. El procesamiento incluye un riguroso control de calidad estructural para purgar posibles registros temporales duplicados y exporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD, optimizado para su posterior evaluación estadística.
+Este script constituye una variante del cálculo de métricas descrito anteriormente, restringiendo el análisis exclusivamente a trayectorias con una duración superior a 10 fotogramas, con el objetivo de eliminar trayectorias cortas y aumentar la robustez de los análisis cinemáticos posteriores.
 
 Extracción de datos\Obtención Métricas >10 frames
 

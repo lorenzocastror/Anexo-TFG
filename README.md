@@ -3,8 +3,6 @@
 ## Introducción
 El presente repositorio contiene el conjunto de herramientas computacionales, scripts de procesamiento de imágenes y algoritmos de análisis estadístico desarrollados para la realización del TFG titulado **Modelos Lineales Mixtos para el Análisis de la Dinámica Mitocondrial en Cáncer**. 
 
-La segmentación mitocondrial se realiza mediante Nellie, desarrollado por Austin E. Y. T. Lefebvre. Este repositorio utiliza Nellie como herramienta externa para la segmentación y extracción inicial de características mitocondriales. Nellie está distribuido bajo licencia Creative Commons Attribution 4.0 International (CC BY 4.0).
-
 ---
 
 ## Índice del pipeline

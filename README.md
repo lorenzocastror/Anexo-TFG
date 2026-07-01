@@ -29,29 +29,6 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ---
 
-## Estructura del Pipeline y Documentación del Código
-### 0. Requisitos y Estructura del Proyecto
-
-- Python 3.11
-- CUDA (opcional para Trackastra)
-- Sistema operativo Windows (rutas configuradas para Windows)
-
-Para la correcta ejecución del pipeline, el directorio de trabajo debe mantener la siguiente arquitectura de archivos:
-
-```text
-Videos_Mitocondrias/
-├── Project001/                               # Vídeos originales en formato TIFF (RAW)
-├── Project001 Máscaras 3 Capas lng_adaptive/ # Salidas iniciales de segmentación de Nellie
-├── Resultados Analisis_TFG/                  # Matrices consolidadas y salidas finales
-│   ├── Boxplots_Individuales/
-│   ├── Histogramas desplazamientos Control/
-│   └── SuperPlots/
-└── Python/                                   # Scripts de procesamiento (.py)
-```
-⚠️ Los módulos de preprocesamiento e integración automática contienen variables ruta asociadas al entorno de almacenamiento local del autor. Antes de ejecutar el pipeline en una nueva estación de trabajo, verifique las rutas declaradas en las cabeceras de configuración de cada script.
-
----
-
 ### 1. Configuración del Entorno Virtual (Environment)
 Para garantizar la ejecución del pipeline se requiere la preparación de un entorno. La instalación de los paquetes necesarios se realiza mediante `pip` ejecutando el siguiente comando:
 
@@ -150,6 +127,29 @@ Este script calcula el ratio de movilidad mitocondrial para cada vídeo a partir
 Este script exporta un Excel con la distancia media de cada mitocondria al centro de masa celular a lo largo de su trayectoria, utilizando simultáneamente la información de las trayectorias mitocondriales y de la segmentación celular. Además de la distancia absoluta (µm), el algoritmo calcula una distancia normalizada respecto al tamaño celular.
 
 `Extracción de datos\Obtención Distancia al Centro`
+
+---
+
+## Estructura del Pipeline y Documentación del Código
+### 0. Requisitos y Estructura del Proyecto
+
+- Python 3.11
+- CUDA (opcional para Trackastra)
+- Sistema operativo Windows (rutas configuradas para Windows)
+
+Para la correcta ejecución del pipeline, el directorio de trabajo debe mantener la siguiente arquitectura de archivos:
+
+```text
+Videos_Mitocondrias/
+├── Project001/                               # Vídeos originales en formato TIFF (RAW)
+├── Project001 Máscaras 3 Capas lng_adaptive/ # Salidas iniciales de segmentación de Nellie
+├── Resultados Analisis_TFG/                  # Matrices consolidadas y salidas finales
+│   ├── Boxplots_Individuales/
+│   ├── Histogramas desplazamientos Control/
+│   └── SuperPlots/
+└── Python/                                   # Scripts de procesamiento (.py)
+```
+⚠️ Los módulos de preprocesamiento e integración automática contienen variables ruta asociadas al entorno de almacenamiento local del autor. Antes de ejecutar el pipeline en una nueva estación de trabajo, verifique las rutas declaradas en las cabeceras de configuración de cada script.
 
 ---
 

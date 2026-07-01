@@ -68,29 +68,48 @@ Visualización de datos\Secuencia de Trayectorias para la memoria
 ### 9. Generación de los Boxplots de las Métricas Iniciales
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
 
+Visualización de datos\Boxplots Descriptivos
+
 ---
 
 ### 10. Generación de Superplots para los grupos Control
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
 
----
-
-### 11. Generación de los Histogramas de Desplazamientos mitocondriales
-Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+Visualización de datos\Superplot Grupos Control
 
 ---
 
-### 12. Obtención de la base de datos del Ratio de Movimiento
+### 11. Generación de los Gráficos del MSD
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+Visualización de datos\Gráficos MSD
 
 ---
 
-### 13. Obtención de la base de datos de la Distancia al Centro
+### 12. Generación de los Histogramas de Desplazamientos mitocondriales
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+Histogramas Desplazamiento Mitocondrial
 
 ---
 
-### 14. Generación de Superplots
+### 13. Obtención de la base de datos del Ratio de Movimiento
 Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+Extracción de datos\Obtención Ratios de movimiento
+
+---
+
+### 14. Obtención de la base de datos de la Distancia al Centro
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+Extracción de datos\Obtención Distancia al Centro
+
+---
+
+### 15. Generación de Superplots
+Para garantizar la reproducibilidad del pipeline y la correcta ejecución de todas las dependencias matemáticas, de visión computacional y aprendizaje profundo, se requiere la preparación de un entorno virtualizado. La instalación de los paquetes necesarios se realiza mediante el gestor de paquetes `pip` ejecutando el siguiente comando:
+
+Visualización de datos\Superplot Grupos
 
 ---

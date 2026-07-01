@@ -1,0 +1,65 @@
+import pandas as pd
+import numpy as np
+import os
+
+# =============================================================================
+# --- CONFIGURACIÓN DE PARÁMETROS Y RUTAS ---
+# =============================================================================
+ARCHIVO_INPUT = r"Videos_Mitocondrias\Resultados Analisis_TFG\Resumen Desplazamiento Mitocondrias Control Unificado.xlsx"
+CARPETA_SALIDA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Ratios_Movimiento"
+UMBRAL_MOVILIDAD = 0.2  # Umbral de exclusión espacial (micras): define el límite entre desplazamiento y ruido estático
+
+def main():
+    if not os.path.exists(CARPETA_SALIDA):
+        os.makedirs(CARPETA_SALIDA)
+
+    # 1. Carga de los datos tabulares de desplazamiento
+    print(f"Cargando conjunto de datos: {ARCHIVO_INPUT}")
+    try:
+        df = pd.read_excel(ARCHIVO_INPUT)
+    except FileNotFoundError:
+        print(f"Error: No se ha localizado el archivo en la ruta {ARCHIVO_INPUT}")
+        return
+
+    # 2. Identificación de las columnas que representan las frecuencias de los bins de distancia
+    columnas_bins = [col for col in df.columns if '-' in col and col[0].isdigit()]
+    print(f"Identificación de {len(columnas_bins)} intervalos (bins) de distancia espacial.")
+
+    # 3. Categorización y agregación de eventos según el umbral de movilidad
+    # Los pasos cinemáticos se clasifican en una fracción móvil (> umbral) 
+    # y una fracción estática (<= umbral).
+    df['Pasos_Moviles'] = 0     
+    df['Pasos_Estaticos'] = 0   
+    
+    for col in columnas_bins:
+        try:
+            limite_inferior = float(col.split('-')[0])
+            
+            if limite_inferior >= UMBRAL_MOVILIDAD:
+                df['Pasos_Moviles'] += df[col]
+            else:
+                df['Pasos_Estaticos'] += df[col]
+                
+        except ValueError:
+            continue
+
+    # 4. Cálculo del ratio de movilidad poblacional
+    # Definido como el cociente entre la frecuencia de pasos móviles y la frecuencia de pasos estáticos.
+    # Se implementa un manejo de casos nulos para evitar la indeterminación matemática por división por cero.
+    df['Ratio_Movilidad'] = df.apply(
+        lambda row: row['Pasos_Moviles'] / row['Pasos_Estaticos'] if row['Pasos_Estaticos'] > 0 else np.nan, 
+        axis=1
+    )
+    
+    # 5. Estandarización de grupos experimentales (Agregación de controles)
+    if 'Grupo' in df.columns:
+        df['Grupo_Analisis'] = df['Grupo'].apply(lambda x: 'Control_Global' if 'Control' in str(x) else x)
+
+    # 6. Exportación de los datos procesados
+    ruta_excel_stats = os.path.join(CARPETA_SALIDA, "Ratios_Mitocondrias_Area_Mayor_sobre_Menor.xlsx")
+    df.to_excel(ruta_excel_stats, index=False)
+    
+    print(f"\nProceso finalizado. La matriz con los ratios calculados ha sido exportada en:\n{ruta_excel_stats}")
+
+if __name__ == "__main__":
+    main()

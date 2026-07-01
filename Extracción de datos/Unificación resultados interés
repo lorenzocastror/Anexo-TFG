@@ -1,0 +1,184 @@
+import pandas as pd
+import os
+
+def unificar_excels_mitocondrias_final():
+    # =============================================================================
+    # 1. PARÁMETROS DE CONFIGURACIÓN
+    # =============================================================================
+    ruta_base = "Videos_Mitocondrias"
+    nombre_carpeta_resultados = "Resultados Analisis_TFG"
+
+    # Nomenclatura exacta de las hojas de datos a extraer
+    hoja_trayectorias = "Mitocondrias_Interes"
+    hoja_datos_celula = "Datos_Celula"
+
+    # Identificador del sufijo para los archivos válidos
+    sufijo_correcto = "_Matriz_Limpia_Final.xlsx"
+
+    # Término de exclusión para archivos no deseados
+    termino_excluir = "Lng_adaptive"
+
+    # EXCLUSIÓN ESTRUCTURAL DE DIRECTORIOS: 
+    # Se omiten directorios que contienen versiones previas o copias de seguridad 
+    # ("Máscaras sin corregir", "Lng_adaptive") para prevenir la duplicación 
+    # sistemática en la extracción de datos. La exclusión se realiza a nivel de 
+    # ruta para optimizar el recorrido.
+    carpetas_a_excluir = [
+        "Lng_adaptive",
+        "Máscaras sin corregir",
+    ]
+
+    # EXCLUSIÓN ESPECÍFICA DE ARCHIVOS: 
+    # Se descartan archivos residuales de ejecuciones anteriores (ej. 
+    # "Master_Matriz_Limpia_Final.xlsx") para evitar que se procesen como 
+    # entidades experimentales independientes e introduzcan artefactos en 
+    # la matriz final.
+    nombres_archivo_a_excluir = [
+        "Master_Matriz_Limpia_Final.xlsx",
+    ]
+
+    # =============================================================================
+    # 2. LÓGICA DE PROCESAMIENTO
+    # =============================================================================
+    ruta_salida = os.path.join(ruta_base, nombre_carpeta_resultados)
+    if not os.path.exists(ruta_salida):
+        os.makedirs(ruta_salida)
+
+    lista_dfs_trayectorias = []
+    lista_dfs_celulas = []
+
+    # REGISTRO DE RUTAS PROCESADAS (Control de redundancia):
+    # Se almacena la ruta absoluta y normalizada de cada archivo iterado. Este 
+    # control evita la inclusión accidental de directorios clonados que no estén 
+    # contemplados explícitamente en la lista de exclusión estructural primaria.
+    rutas_ya_procesadas = set()
+
+    print(f"Iniciando búsqueda y unificación de datos en: {ruta_base}...\n")
+
+    for root, dirs, files in os.walk(ruta_base):
+
+        if nombre_carpeta_resultados in root:
+            continue
+
+        # Aplicación de la regla de exclusión de directorios: omisión 
+        # inmediata de la iteración si la ruta coincide con los términos excluidos.
+        if any(termino in root for termino in carpetas_a_excluir):
+            continue
+
+        for file in files:
+
+            # Aplicación de la regla de exclusión de archivos nominales.
+            if file in nombres_archivo_a_excluir:
+                continue
+
+            # FILTRO 0: Omisión de archivos temporales y de bloqueo de Microsoft Excel.
+            # Cuando un archivo .xlsx se encuentra en uso, el sistema genera un archivo 
+            # oculto de bloqueo con el prefijo "~$". La inclusión de estos archivos 
+            # genera duplicaciones exactas de los datos al coincidir con el sufijo 
+            # de búsqueda establecido.
+            if file.startswith("~$"):
+                continue
+
+            # Filtrado auxiliar de archivos temporales adicionales del sistema o la nube.
+            if file.startswith(".~") or file.startswith("$"):
+                continue
+
+            # FILTRO 1: Comprobación del sufijo de validación del archivo.
+            if file.endswith(sufijo_correcto):
+
+                # FILTRO 2: Verificación de la ausencia del término de exclusión.
+                if termino_excluir in file or termino_excluir in root:
+                    continue
+
+                ruta_completa = os.path.join(root, file)
+
+                # Normalización canónica de la ruta absoluta para estandarizar 
+                # la evaluación en el registro de redundancias, asegurando 
+                # inmunidad frente a variaciones de sintaxis del sistema operativo.
+                ruta_normalizada = os.path.normcase(os.path.abspath(ruta_completa))
+
+                if ruta_normalizada in rutas_ya_procesadas:
+                    print(f"⏭ Omitido (procesado previamente, duplicado de ruta detectado): {file}")
+                    continue
+
+                rutas_ya_procesadas.add(ruta_normalizada)
+
+                # Extracción y limpieza del identificador del experimento (nombre del vídeo).
+                nombre_video = file.replace(sufijo_correcto, "")
+
+                try:
+                    xls = pd.ExcelFile(ruta_completa)
+                    sheet_names = xls.sheet_names
+
+                    # Variable de estado para confirmar la extracción de datos
+                    datos_agregados = False
+
+                    # 1. Extracción de la hoja de Trayectorias
+                    if hoja_trayectorias in sheet_names:
+                        df_traj = pd.read_excel(xls, sheet_name=hoja_trayectorias)
+                        df_traj.insert(0, "Nombre del vídeo", nombre_video)
+                        lista_dfs_trayectorias.append(df_traj)
+                        datos_agregados = True
+
+                    # 2. Extracción de la hoja de Datos Celulares
+                    if hoja_datos_celula in sheet_names:
+                        df_cel = pd.read_excel(xls, sheet_name=hoja_datos_celula)
+                        df_cel.insert(0, "Nombre del vídeo", nombre_video)
+                        lista_dfs_celulas.append(df_cel)
+                        datos_agregados = True
+
+                    if datos_agregados:
+                        print(f"✓ Procesado con éxito: {nombre_video}")
+                    else:
+                        print(f"⚠ Archivo detectado pero carente de hojas válidas: {file}")
+
+                except Exception as e:
+                    print(f"Error de lectura en {file}: {e}")
+
+    # =============================================================================
+    # 3. EXPORTACIÓN DE DATOS
+    # =============================================================================
+
+    if lista_dfs_trayectorias or lista_dfs_celulas:
+        nombre_archivo_final = "Master_Analisis_Mitocondrias_Filtrado.xlsx"
+        ruta_archivo_final = os.path.join(ruta_salida, nombre_archivo_final)
+
+        print("\nGenerando matriz consolidada (Archivo Maestro)...")
+
+        with pd.ExcelWriter(ruta_archivo_final, engine='openpyxl') as writer:
+            if lista_dfs_trayectorias:
+                df_final_traj = pd.concat(lista_dfs_trayectorias, ignore_index=True)
+
+                # CONTROL DE CALIDAD FINAL: Eliminación de filas estrictamente 
+                # idénticas en el DataFrame concatenado. Este paso mitiga posibles 
+                # duplicaciones derivadas de clonaciones de archivos no capturadas 
+                # por los filtros de ruta previos.
+                n_antes = len(df_final_traj)
+                df_final_traj = df_final_traj.drop_duplicates()
+                n_despues = len(df_final_traj)
+                if n_antes != n_despues:
+                    print(f"  (Control de calidad: se depuraron {n_antes - n_despues} "
+                          f"filas duplicadas residuales en 'Trayectorias Totales')")
+
+                df_final_traj.to_excel(writer, sheet_name="Trayectorias Totales", index=False)
+                print(f"- Hoja 'Trayectorias Totales': {len(df_final_traj)} observaciones consolidadas.")
+
+            if lista_dfs_celulas:
+                df_final_cel = pd.concat(lista_dfs_celulas, ignore_index=True)
+
+                n_antes = len(df_final_cel)
+                df_final_cel = df_final_cel.drop_duplicates()
+                n_despues = len(df_final_cel)
+                if n_antes != n_despues:
+                    print(f"  (Control de calidad: se depuraron {n_antes - n_despues} "
+                          f"filas duplicadas residuales en 'Datos Células Totales')")
+
+                df_final_cel.to_excel(writer, sheet_name="Datos Células Totales", index=False)
+                print(f"- Hoja 'Datos Células Totales': {len(df_final_cel)} observaciones consolidadas.")
+
+        print(f"\n¡EXPORTACIÓN COMPLETADA!\nDirectorio de destino: {ruta_archivo_final}")
+    else:
+        print("\nERROR: Ausencia de datos extraíbles. Verifique que los archivos de origen no se encuentren bloqueados por otros procesos.")
+
+if __name__ == "__main__":
+    unificar_excels_mitocondrias_final()

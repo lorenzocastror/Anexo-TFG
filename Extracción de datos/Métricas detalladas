@@ -1,0 +1,273 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from scipy.spatial.distance import pdist, squareform
+from scipy.stats import linregress
+import os
+import warnings
+
+# Supresión de advertencias matemáticas de ejecución 
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+
+# --- PARÁMETROS EXPERIMENTALES ---
+PIXEL_SIZE = 0.05        # Resolución espacial (micras/píxel)
+FRAME_INTERVAL = 3.906   # Resolución temporal (segundos/frame)
+
+def calcular_metricas_tracks(df, pixel_size=PIXEL_SIZE, frame_interval=FRAME_INTERVAL):
+    """
+    Cálculo de métricas cinemáticas (velocidad, desplazamiento y persistencia) por trayectoria.
+    """
+    metrics = []
+    
+    for track_id, group in df.groupby('Track_ID'):
+        group = group.sort_values('Frame')
+        
+        # Exclusión de trayectorias con un único punto de registro temporal
+        if len(group) < 2:
+            continue
+            
+        # Extracción y conversión de coordenadas a unidades físicas
+        x = group['Pos_X'].values * pixel_size
+        y = group['Pos_Y'].values * pixel_size
+        t = group['Frame'].values * frame_interval
+        
+        # Cálculo de desplazamientos vectoriales y diferencias temporales
+        dx = np.diff(x)
+        dy = np.diff(y)
+        dt = np.diff(t)
+        
+        # Prevención de divisiones por cero ante posibles duplicidades temporales
+        dt[dt == 0] = np.nan
+        
+        step_distances = np.sqrt(dx**2 + dy**2)
+        velocities = step_distances / dt
+        
+        # Consolidación de métricas de trayectoria
+        total_dist = np.sum(step_distances)
+        net_disp = np.sqrt((x[-1]-x[0])**2 + (y[-1]-y[0])**2)
+        
+        metrics.append({
+            'Track_ID': track_id,
+            'Duration_s': t[-1] - t[0],
+            'N_Frames': len(group),
+            'Total_Distance_um': total_dist,
+            'Net_Displacement_um': net_disp,
+            'Mean_Velocity_um_s': np.nanmean(velocities),
+            'Max_Velocity_um_s': np.nanmax(velocities),
+            'Std_Velocity': np.nanstd(velocities),
+            # Índice de direccionalidad (1 = rectilíneo, 0 = aleatorio/circular)
+            'Directionality': net_disp / total_dist if total_dist > 0 else 0,
+            'Mean_Area_um2': group['Area_pixels'].mean() * (pixel_size**2)
+        })
+        
+    return pd.DataFrame(metrics)
+
+def calcular_metricas_radiales(df_traj, df_cells, pixel_size=PIXEL_SIZE, frame_interval=FRAME_INTERVAL):
+    """
+    Evaluación de la dinámica espacial relativa al centroide celular.
+    Integra los datos de trayectoria de la organela con las coordenadas del centro de masa celular.
+    """
+    # Fusión de datos espaciales
+    # La operación 'merge' garantiza la correspondencia espacial exacta de cada mitocondria con su célula en cada frame
+    df_merged = pd.merge(
+        df_traj, 
+        df_cells[['Frame', 'Centro_Masa_Celula_X', 'Centro_Masa_Celula_Y']], 
+        on='Frame', 
+        how='inner'
+    )
+    
+    metrics = []
+    
+    for track_id, group in df_merged.groupby('Track_ID'):
+        group = group.sort_values('Frame')
+        if len(group) < 2:
+            continue
+            
+        mito_pos = group[['Pos_X', 'Pos_Y']].values * pixel_size
+        cell_center = group[['Centro_Masa_Celula_X', 'Centro_Masa_Celula_Y']].values * pixel_size
+        
+        # Cálculo de la distancia euclídea organela-centroide en función del tiempo
+        dist_to_center = np.linalg.norm(mito_pos - cell_center, axis=1)
+        
+        radial_changes = np.diff(dist_to_center)
+        dt = np.diff(group['Frame'].values * frame_interval)
+        
+        dt[dt == 0] = np.nan
+
+        radial_velocities = radial_changes / dt
+        
+        # Radial Bias: Fracción de desplazamientos que incrementan la distancia al centro.
+        # Un valor > 0.5 indica tendencia centrífuga (hacia la membrana periférica).
+        # Un valor < 0.5 indica tendencia centrípeta (hacia el núcleo).
+        radial_bias = np.mean(radial_changes > 0)
+        
+        metrics.append({
+            'Track_ID': track_id,
+            'Initial_Dist_Center_um': dist_to_center[0],
+            'Final_Dist_Center_um': dist_to_center[-1],
+            'Net_Radial_Change_um': dist_to_center[-1] - dist_to_center[0],
+            'Mean_Radial_Velocity_um_s': np.mean(radial_velocities),
+            'Radial_Bias': radial_bias
+        })
+        
+    return pd.DataFrame(metrics)
+
+def calcular_clustering(df, pixel_size=PIXEL_SIZE):
+    """
+    Análisis de la topología espacial (análisis del vecino más cercano) por frame.
+    """
+    metrics = []
+    
+    for t, group in df.groupby('Frame'):
+        positions = group[['Pos_X', 'Pos_Y']].values * pixel_size
+        
+        # Requisito mínimo de elementos para la validez del cálculo topológico
+        if len(positions) < 3: 
+            continue
+            
+        # Generación de la matriz de distancias espaciales emparejadas
+        dist_matrix = squareform(pdist(positions))
+        np.fill_diagonal(dist_matrix, np.inf)
+        
+        # Extracción de la distancia al vecino más cercano (Nearest Neighbor)
+        nn_distances = np.min(dist_matrix, axis=1)
+        
+        metrics.append({
+            'Frame': t,
+            'N_Mitochondria': len(positions),
+            'Mean_NN_Distance_um': np.mean(nn_distances),
+            'Std_NN_Distance_um': np.std(nn_distances)
+        })
+        
+    return pd.DataFrame(metrics)
+
+def calcular_msd_ensemble(df, pixel_size=PIXEL_SIZE, frame_interval=FRAME_INTERVAL, max_lag=15):
+    """
+    Cálculo del Desplazamiento Cuadrático Medio (MSD) promediado para el conjunto poblacional (Ensemble).
+    """
+    msd_dict = {lag: [] for lag in range(1, max_lag + 1)}
+    
+    for track_id, group in df.groupby('Track_ID'):
+        group = group.sort_values('Frame')
+        if len(group) <= 1: continue
+
+        x = group['Pos_X'].values * pixel_size
+        y = group['Pos_Y'].values * pixel_size
+        
+        # Cuantificación de desplazamientos iterando sobre los intervalos temporales (lags)
+        max_lag_track = min(max_lag, len(x)-1)
+        for lag in range(1, max_lag_track + 1):
+            sq_disp = (x[lag:] - x[:-lag])**2 + (y[lag:] - y[:-lag])**2
+            msd_dict[lag].extend(sq_disp)
+            
+    # Cálculo del promedio poblacional por intervalo (lag)
+    lags_sec = []
+    msd_vals = []
+    for lag in range(1, max_lag + 1):
+        if len(msd_dict[lag]) > 0:
+            lags_sec.append(lag * frame_interval)
+            msd_vals.append(np.mean(msd_dict[lag]))
+            
+    return np.array(lags_sec), np.array(msd_vals)
+
+
+# =============================================================================
+# --- BLOQUE DE EJECUCIÓN PRINCIPAL ---
+# =============================================================================
+
+def procesar_metricas_totales():
+    ruta_archivo = r"Videos_Mitocondrias\Resultados Analisis_TFG\Master_Analisis_Mitocondrias_Filtrado.xlsx"
+    
+    print("Cargando archivo maestro...")
+    df_traj_totales = pd.read_excel(ruta_archivo, sheet_name="Trayectorias Totales")
+    df_celulas_totales = pd.read_excel(ruta_archivo, sheet_name="Datos Células Totales")
+    
+    # =========================================================
+    # 🛡️ CONTROL DE CALIDAD Y DEPURACIÓN ESTRUCTURAL DE DATOS
+    # =========================================================
+    
+    # --- CONTROL 1: Eliminación de registros nulos y estandarización de metadatos ---
+    df_traj_totales = df_traj_totales.dropna(subset=['Nombre del vídeo'])
+    df_celulas_totales = df_celulas_totales.dropna(subset=['Nombre del vídeo'])
+    
+    df_traj_totales['Nombre del vídeo'] = df_traj_totales['Nombre del vídeo'].astype(str)
+    df_celulas_totales['Nombre del vídeo'] = df_celulas_totales['Nombre del vídeo'].astype(str)
+    
+    # --- CONTROL 2: Prevención de duplicidad temporal en trayectorias ---
+    # Supresión de registros que presenten solapamiento idéntico en vídeo, 
+    # identificador de trayectoria (Track_ID) y frame, conservando únicamente la primera observación.
+    df_traj_totales = df_traj_totales.drop_duplicates(subset=['Nombre del vídeo', 'Track_ID', 'Frame'], keep='first')
+    
+    # Filtrado análogo para los centroides celulares, garantizando una única coordenada referencial por frame y vídeo.
+    df_celulas_totales = df_celulas_totales.drop_duplicates(subset=['Nombre del vídeo', 'Frame'], keep='first')
+    
+    # =========================================================
+
+    # Inicialización de estructuras de almacenamiento de resultados
+    resultados_tracks = []
+    resultados_msd = []
+    resultados_clustering = []
+    
+    # Extracción de identificadores únicos de experimentación
+    videos_unicos = df_traj_totales['Nombre del vídeo'].unique()
+    
+    print(f"Analizando {len(videos_unicos)} vídeos...")
+    
+    for video in videos_unicos:
+        print(f"-> Procesando: {video}")
+        
+        # Extracción de la etiqueta del grupo experimental aislando el sufijo direccional
+        grupo = video.rsplit('_', 1)[0]
+        
+        # Aislamiento de datos correspondientes al identificador actual
+        df_t = df_traj_totales[df_traj_totales['Nombre del vídeo'] == video].copy()
+        df_c = df_celulas_totales[df_celulas_totales['Nombre del vídeo'] == video].copy()
+        
+        # 1. Extracción de métricas cinemáticas elementales
+        m_tracks = calcular_metricas_tracks(df_t)
+        
+        # 2. Extracción de métricas radiales (condicionado a la disponibilidad de datos de segmentación celular)
+        if not df_c.empty:
+            m_radiales = calcular_metricas_radiales(df_t, df_c)
+            # Integración de parámetros radiales al conjunto de datos principal
+            if not m_radiales.empty:
+                m_tracks = pd.merge(m_tracks, m_radiales, on='Track_ID', how='left')
+        
+        # Inserción de metadatos descriptivos
+        m_tracks.insert(0, 'Nombre del vídeo', video)
+        m_tracks.insert(1, 'Grupo', grupo)
+        resultados_tracks.append(m_tracks)
+        
+        # 3. Cuantificación de la agrupación espacial (Clustering topológico)
+        m_cluster = calcular_clustering(df_t)
+        m_cluster.insert(0, 'Nombre del vídeo', video)
+        m_cluster.insert(1, 'Grupo', grupo)
+        resultados_clustering.append(m_cluster)
+        
+        # 4. Cálculo del MSD (requiere almacenamiento independiente por su dimensionalidad temporal intrínseca)
+        lags, msd = calcular_msd_ensemble(df_t)
+        if len(lags) > 0:
+            df_msd = pd.DataFrame({'Lag_s': lags, 'MSD_um2': msd})
+            df_msd.insert(0, 'Nombre del vídeo', video)
+            df_msd.insert(1, 'Grupo', grupo)
+            resultados_msd.append(df_msd)
+
+    # =============================================================================
+    # --- EXPORTACIÓN DE RESULTADOS ---
+    # =============================================================================
+    ruta_salida = r"Videos_Mitocondrias/Resultados Analisis_TFG/Metricas_Detalladas_Mitocondrias_TFG.xlsx"
+    print(f"\nGuardando resultados en: {ruta_salida}")
+    
+    with pd.ExcelWriter(ruta_salida, engine='openpyxl') as writer:
+        if resultados_tracks:
+            pd.concat(resultados_tracks).to_excel(writer, sheet_name="Métricas por Track", index=False)
+        if resultados_clustering:
+            pd.concat(resultados_clustering).to_excel(writer, sheet_name="Clustering Temporal", index=False)
+        if resultados_msd:
+            pd.concat(resultados_msd).to_excel(writer, sheet_name="Curvas MSD", index=False)
+            
+    print("¡Proceso finalizado con éxito!")
+
+if __name__ == "__main__":
+    procesar_metricas_totales()

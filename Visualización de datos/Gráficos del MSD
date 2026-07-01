@@ -1,0 +1,133 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
+from scipy.stats import linregress
+import os
+import warnings
+
+# Supresión de advertencias matemáticas de ejecución
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+
+def configurar_estilo_cientifico():
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
+        'axes.linewidth': 2.0, 'axes.edgecolor': 'black', 'xtick.direction': 'in', 'ytick.direction': 'in',
+        'xtick.top': True, 'ytick.right': True, 'xtick.major.width': 1.5, 'ytick.major.width': 1.5,
+        'xtick.minor.width': 1.0, 'ytick.minor.width': 1.0, 'xtick.major.size': 7, 'ytick.major.size': 7,
+        'xtick.minor.size': 4, 'ytick.minor.size': 4, 'axes.labelsize': 20, 'xtick.labelsize': 15,
+        'ytick.labelsize': 15, 'legend.fontsize': 13, 'figure.facecolor': 'white', 'axes.facecolor': 'white'
+    })
+    return {"Control_Global": "#1f77b4", "si_24H": "#ff7f0e", "si_48H": "#d62728", "si_72H": "#8c564b"}
+
+def main():
+    colores = configurar_estilo_cientifico()
+    CARPETA_BASE = "Videos_Mitocondrias/Resultados Analisis_TFG"
+    ARCHIVO_INPUT = os.path.join(CARPETA_BASE, "Metricas_Detalladas_Mitocondrias_10_Frames_TFG.xlsx")
+    CARPETA_SALIDA = os.path.join(CARPETA_BASE, "Graficos_MSD_Publicacion")
+    
+    if not os.path.exists(CARPETA_SALIDA): os.makedirs(CARPETA_SALIDA)
+
+    df_msd = pd.read_excel(ARCHIVO_INPUT, sheet_name="Curvas MSD")
+    df_msd['Grupo_Agregado'] = df_msd['Grupo'].apply(lambda x: 'Control_Global' if 'Control' in str(x) else x)
+    msd_stats = df_msd.groupby(['Grupo_Agregado', 'Lag_s'])['MSD_um2'].agg(['mean', 'sem']).reset_index()
+    grupos_presentes = msd_stats['Grupo_Agregado'].unique()
+
+    resultados_alpha = {}
+    resultados_intercepto = {}  # Almacenamiento de la estimación del error de localización (intercepto lineal) por grupo experimental
+
+    for grupo in grupos_presentes:
+        datos_grupo = msd_stats[msd_stats['Grupo_Agregado'] == grupo].copy().sort_values('Lag_s')
+        color_linea = colores.get(grupo, "#7f8c8d")
+        
+        tau_fit = datos_grupo['Lag_s'].values[:8]
+        msd_fit = datos_grupo['mean'].values[:8]
+        mascara_validos = (tau_fit > 0) & (msd_fit > 0)
+        log_tau = np.log10(tau_fit[mascara_validos])
+        log_msd = np.log10(msd_fit[mascara_validos])
+        
+        slope, intercept, _, _, _ = linregress(log_tau, log_msd)
+        alpha = slope
+        resultados_alpha[grupo] = alpha
+
+        # ================================================================
+        # CÁLCULO DEL RUIDO DE LOCALIZACIÓN
+        # ================================================================
+        # La regresión lineal se aplica sobre la transformación logarítmica 
+        # de las variables. Por consiguiente, el parámetro 'intercept' corresponde 
+        # al log10(MSD) evaluado en log10(tau)=0 (es decir, en t=1 s).
+        # Para revertir la transformación y obtener el intercepto en la escala 
+        # lineal original (en µm²), se aplica la exponenciación de base 10.
+        #
+        # De acuerdo con el modelo teórico de difusión MSD(t) = 4·D·t^α + 4·σ², 
+        # este valor constituye una aproximación analítica del término de ruido 
+        # estático (4σ²), utilizable para la definición de umbrales cinemáticos.
+        #
+        # Nota metodológica: Este método obtiene el intercepto ajustando una 
+        # recta en espacio log-log, asumiendo implícitamente una ley de potencias 
+        # estricta (MSD = A·t^α). Dado que el modelo teórico completo con el 
+        # término aditivo no conforma una ley de potencias pura, el valor extraído 
+        # representa una aproximación paramétrica. Para una alta precisión 
+        # cuantitativa, se requeriría un ajuste no lineal directo (mediante 
+        # scipy.optimize.curve_fit) del modelo completo sobre los datos en 
+        # escala lineal.
+        # ================================================================
+        intercepto_lineal = 10 ** intercept
+        resultados_intercepto[grupo] = intercepto_lineal
+        
+        fig, ax = plt.subplots(figsize=(6, 4.5))
+        ax.errorbar(datos_grupo['Lag_s'], datos_grupo['mean'], yerr=datos_grupo['sem'], fmt='o', color='black', ecolor='black', capsize=3, elinewidth=1.2, markersize=5, zorder=3)
+        ax.plot(datos_grupo['Lag_s'], datos_grupo['mean'], color=color_linea, linewidth=2.0, zorder=2)
+        
+        ax.set_xlabel(r"$\tau$ / s", fontweight='bold')
+        ax.set_ylabel(r"MSD / µm²", fontweight='bold')
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.set_xlim(left=0, right=35)
+        ax.set_ylim(bottom=0)
+        
+        texto_alpha = f"$\\alpha$ = {alpha:.3f}"
+        ax.text(0.05, 0.85, texto_alpha, transform=ax.transAxes, fontsize=15, fontweight='bold', color=color_linea, bbox=dict(facecolor='white', edgecolor=color_linea, alpha=0.8, boxstyle='round,pad=0.5'))
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(CARPETA_SALIDA, f"MSD_PaperStyle_{grupo}.png"), dpi=300, bbox_inches='tight')
+        plt.close()
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for grupo in grupos_presentes:
+        datos_grupo = msd_stats[msd_stats['Grupo_Agregado'] == grupo]
+        color = colores.get(grupo, "#7f8c8d")
+        alpha_val = resultados_alpha.get(grupo, 0)
+        etiqueta = f"{grupo} ($\\alpha$={alpha_val:.2f})"
+        ax.errorbar(datos_grupo['Lag_s'], datos_grupo['mean'], yerr=datos_grupo['sem'], fmt='-o', color=color, ecolor=color, capsize=2, elinewidth=1.2, markersize=5, linewidth=2.0, label=etiqueta)
+
+    ax.set_xlabel(r"$\tau$ / s", fontweight='bold')
+    ax.set_ylabel(r"MSD / µm²", fontweight='bold')
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlim(left=0, right=35)
+    ax.set_ylim(bottom=0)
+    ax.legend(frameon=False, loc='upper left')
+    plt.tight_layout()
+    plt.savefig(os.path.join(CARPETA_SALIDA, "MSD_Comparativa_PaperStyle.png"), dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # ================================================================
+    # EXPORTACIÓN TABULAR DEL RUIDO DE LOCALIZACIÓN
+    # ================================================================
+    # Estructuración y exportación de la aproximación del ruido de 
+    # localización (µm²) calculada previamente para cada grupo experimental.
+    # ================================================================
+    df_ruido = pd.DataFrame({
+        "Grupo": list(resultados_intercepto.keys()),
+        "Intercepto_MSD_um2": list(resultados_intercepto.values())
+    })
+
+    ruta_ruido = os.path.join(CARPETA_SALIDA, "Ruido_Localizacion_MSD.xlsx")
+    df_ruido.to_excel(ruta_ruido, index=False, sheet_name="Ruido_Localizacion")
+    print(f"✅ Ruido de localización exportado en: {ruta_ruido}")
+
+    print(f"\n¡Éxito! Gráficos guardados en: {CARPETA_SALIDA}")
+
+if __name__ == "__main__":
+    main()

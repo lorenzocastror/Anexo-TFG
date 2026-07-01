@@ -1,0 +1,144 @@
+"""
+====================================================================
+GENERADOR DE SUPERPLOTS (Grupos Control Desagregados - Área Media)
+====================================================================
+Script diseñado para la generación de un SuperPlot exclusivo orientado 
+a la evaluación de la estabilidad del tamaño mitocondrial entre los 
+tres grupos control independientes (24H, 48H y 72H), omitiendo su 
+agrupación y excluyendo los datos de los grupos con silenciamiento.
+====================================================================
+"""
+
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+
+# Supresión de advertencias de ejecución
+warnings.filterwarnings('ignore')
+
+# ====================================================================
+# 1. CONFIGURACIÓN GENERAL
+# ====================================================================
+
+ARCHIVO_INPUT = r"Videos_Mitocondrias\Resultados Analisis_TFG\Metricas_Detalladas_Mitocondrias_10_Frames_TFG.xlsx"
+HOJA_INPUT = "Métricas por Track"
+CARPETA_SALIDA = r"Videos_Mitocondrias\Resultados Analisis_TFG\SuperPlots"
+
+COLUMNA_GRUPO = "Grupo"
+COLUMNA_VIDEO = "Nombre del vídeo"
+
+# Restricción paramétrica: Inclusión exclusiva de los grupos control independientes
+ORDEN_GRUPOS = ["Control_24H", "Control_48H", "Control_72H"]
+
+if not os.path.exists(CARPETA_SALIDA):
+    os.makedirs(CARPETA_SALIDA)
+
+# ====================================================================
+# 2. DICCIONARIO DE VARIABLES A GRAFICAR
+# ====================================================================
+
+VARIABLES_A_GRAFICAR = {
+    "Mean_Area_um2": {
+        "etiqueta": r"Área Media (µm$^2$)",
+        "titulo": "SuperPlot: Estabilidad del Tamaño\nen Grupos Control",
+        "ylim_bottom": 0 
+    }
+}
+
+# ====================================================================
+# 3. LECTURA Y PREPROCESAMIENTO DE DATOS
+# ====================================================================
+
+print("Iniciando lectura de la base de datos...")
+df_original = pd.read_excel(ARCHIVO_INPUT, sheet_name=HOJA_INPUT)
+
+# Nota metodológica: Se omite intencionadamente la unificación bajo el 
+# identificador "Control_Global" para posibilitar el análisis de varianza inter-temporal.
+
+print("Columnas detectadas en el registro:")
+print(list(df_original.columns))
+
+# Filtrado estructural de la base de datos según los parámetros definidos.
+# Este procedimiento descarta sistemáticamente los grupos de silenciamiento.
+df_original = df_original[df_original[COLUMNA_GRUPO].isin(ORDEN_GRUPOS)]
+
+
+# ====================================================================
+# 4. FUNCIÓN GENERADORA DE SUPERPLOTS
+# ====================================================================
+
+def generar_superplot(df, variable, etiqueta_eje, titulo, carpeta_salida, ylim_bottom=0):
+    """
+    Renderiza y exporta un gráfico tipo SuperPlot para una variable paramétrica específica.
+    Integra la distribución poblacional subyacente y la media por réplica experimental.
+    """
+    df_var = df.dropna(subset=[variable])
+
+    df_medias = (
+        df_var
+        .groupby([COLUMNA_GRUPO, COLUMNA_VIDEO], as_index=False)
+        .agg({variable: 'mean'})
+    )
+
+    plt.figure(figsize=(12, 10))
+    sns.set_theme(style="whitegrid", context="poster")
+
+    videos_unicos = df_var[COLUMNA_VIDEO].unique()
+    paleta_videos = dict(zip(videos_unicos, sns.color_palette("husl", len(videos_unicos))))
+
+    # Capa inferior: Representación de observaciones mitocondriales individuales
+    sns.stripplot(
+        x=COLUMNA_GRUPO, y=variable, hue=COLUMNA_VIDEO,
+        data=df_var, palette=paleta_videos,
+        alpha=0.3, size=6, jitter=0.3, zorder=1,
+        order=ORDEN_GRUPOS
+    )
+
+    # Capa superior: Representación de valores medios por réplica experimental (vídeo)
+    sns.swarmplot(
+        x=COLUMNA_GRUPO, y=variable, hue=COLUMNA_VIDEO,
+        data=df_medias, palette=paleta_videos,
+        size=18, edgecolor="black", linewidth=2.5, zorder=2,
+        order=ORDEN_GRUPOS
+    )
+
+    plt.legend([], [], frameon=False)
+    plt.title(titulo, fontsize=30, fontweight='bold', pad=30)
+    plt.ylabel(etiqueta_eje, fontsize=26, labelpad=20)
+    plt.xlabel("Grupos Experimentales (Controles)", fontsize=26, labelpad=20)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    if ylim_bottom is not None:
+        plt.ylim(bottom=ylim_bottom)
+    plt.tight_layout()
+
+    # Nomenclatura específica orientada a la prevención de sobrescritura de gráficos generales
+    nombre_archivo = f"SuperPlot_SoloControles_{variable}.png"
+    ruta_guardado = os.path.join(carpeta_salida, nombre_archivo)
+    plt.savefig(ruta_guardado, dpi=300)
+    plt.close()
+
+    print(f"  -> Exportado: {ruta_guardado}")
+
+
+# ====================================================================
+# 5. EJECUCIÓN DEL BUCLE PRINCIPAL
+# ====================================================================
+
+print("\nInicializando renderizado del SuperPlot de validación de controles...")
+
+for variable, config in VARIABLES_A_GRAFICAR.items():
+    print(f"\nProcesando variable morfométrica: {variable}")
+    generar_superplot(
+        df=df_original,
+        variable=variable,
+        etiqueta_eje=config["etiqueta"],
+        titulo=config["titulo"],
+        carpeta_salida=CARPETA_SALIDA,
+        ylim_bottom=config["ylim_bottom"]
+    )
+
+print("\nProceso de ejecución finalizado. Resultados disponibles en el directorio de salida.")

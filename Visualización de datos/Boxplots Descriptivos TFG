@@ -1,0 +1,217 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import warnings
+
+# Supresión de advertencias de ejecución
+warnings.filterwarnings('ignore')
+
+# =============================================================================
+# --- CONFIGURACIÓN DE RUTAS ---
+# =============================================================================
+ARCHIVO_MORFOLOGIA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Master_Analisis_Mitocondrias_Filtrado.xlsx"
+ARCHIVO_MOVIMIENTO = r"Videos_Mitocondrias\Resultados Analisis_TFG\Metricas_Detalladas_Mitocondrias_10_Frames_TFG.xlsx"
+
+# Directorio de destino para la exportación individualizada de gráficos
+CARPETA_SALIDA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Boxplots_Individuales"
+
+# Calibración espacial (micras/píxel).
+# El factor de conversión paramétrico de superficie requiere la elevación 
+# al cuadrado del tamaño de píxel.
+PIXEL_SIZE = 0.05
+
+# =============================================================================
+# --- MAPEO PARAMÉTRICO DE VARIABLES ---
+# =============================================================================
+# Estructura: ( [Lista de nomenclaturas potenciales en la base de datos], "Etiqueta gráfica de salida" )
+VARS_MORFO = [
+    (["Area_um2"], "Área (µm²)"),
+    (["Major_Axis_Length", "Longitud Eje Mayor (px)", "Longitud Eje Mayor"], "Longitud Eje Mayor (px)"),
+    (["Minor_Axis_Length", "Longitud Eje Menor (px)", "Longitud Eje Menor"], "Longitud Eje Menor (px)"),
+    (["Eccentricity", "Excentricidad"], "Excentricidad"),
+    (["Solidity", "Solidez"], "Solidez"),
+    (["Ratio_Movilidad", "Movilidad"], "Ratio de Movilidad")
+]
+
+VARS_MOVI = [
+    (["Total_Distance_um", "Distancia Total (um)"], "Distancia Total (um)"),
+    (["Net_Displacement_um", "Desplazamiento neto (um)", "Desplazamiento neto"], "Desplazamiento Neto (um)"),
+    (["Mean_Velocity_um_s", "Velocidad Media (um/s)"], "Velocidad Media (um/s)"),
+    (["Max_Velocity_um_s", "Velocidad Máxima (um/s)"], "Velocidad Máxima (um/s)"),
+    (["Std_Velocity", "Velocidad Estándar"], "Velocidad Estándar (um/s)"),
+    (["Directionality", "Direccionalidad"], "Direccionalidad")
+]
+# =============================================================================
+
+def configurar_estilo():
+    """
+    Configuración de parámetros tipográficos y de estilo de la librería gráfica 
+    (Seaborn/Matplotlib) para la optimización visual académica.
+    """
+    sns.set_theme(style="ticks")
+    plt.rcParams.update({
+        'axes.labelsize': 24,   
+        'axes.titlesize': 28,   
+        'xtick.labelsize': 20,  
+        'ytick.labelsize': 20,  
+        'figure.figsize': (12, 8) 
+    })
+
+def determinar_grupo(nombre_video):
+    """
+    Clasificación del grupo experimental mediante el análisis de cadenas de 
+    texto en el identificador de la muestra.
+    """
+    nombre_lower = str(nombre_video).lower()
+    if "control" in nombre_lower:
+        return "Control_Global"
+    elif "24h" in nombre_lower:
+        return "si_24H"
+    elif "48h" in nombre_lower:
+        return "si_48H"
+    elif "72h" in nombre_lower:
+        return "si_72H"
+    else:
+        return "Otros"
+
+def encontrar_columna(df, posibles_nombres):
+    """
+    Identificación de la nomenclatura exacta de una variable en la estructura del DataFrame.
+    """
+    for nombre in posibles_nombres:
+        if nombre in df.columns:
+            return nombre
+    return None
+
+def exportar_leyenda(paleta, ruta_salida):
+    """
+    Generación y exportación de un elemento gráfico independiente para la leyenda 
+    cromática de los grupos experimentales.
+    """
+    fig = plt.figure(figsize=(8, 1))
+    handles = [plt.Rectangle((0,0),1,1, color=color) for color in paleta.values()]
+    labels = list(paleta.keys())
+    
+    fig.legend(handles, labels, loc='center', title="Grupo Experimental", ncol=len(labels), frameon=False, fontsize=14, title_fontsize=16)
+    plt.axis('off') 
+    
+    ruta_leyenda = os.path.join(ruta_salida, "00_Leyenda_Grupos.png")
+    plt.savefig(ruta_leyenda, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"✅ Leyenda cromática exportada: 00_Leyenda_Grupos.png")
+
+def main():
+    configurar_estilo()
+    
+    if not os.path.exists(CARPETA_SALIDA):
+        os.makedirs(CARPETA_SALIDA)
+
+    print("Inicializando la carga de matrices de datos...")
+    try:
+        df_morfo = pd.read_excel(ARCHIVO_MORFOLOGIA, sheet_name="Trayectorias Totales")
+        df_movi = pd.read_excel(ARCHIVO_MOVIMIENTO)
+    except FileNotFoundError as e:
+        print(f"❌ Error de lectura de archivos origen. Verifique las rutas:\n{e}")
+        return
+
+    col_video = "Nombre del vídeo"
+    if col_video not in df_morfo.columns or col_video not in df_movi.columns:
+        print(f"❌ Error de integridad: Ausencia de la columna identificadora '{col_video}'.")
+        return
+
+    # =========================================================================
+    # --- CONVERSIÓN DE SUPERFICIE A UNIDADES FÍSICAS (µm²) ---
+    # =========================================================================
+    # Transformación del área de píxeles cuadrados a micras cuadradas mediante 
+    # la aplicación del factor de calibración espacial.
+    if "Area_pixels" in df_morfo.columns:
+        df_morfo["Area_um2"] = df_morfo["Area_pixels"] * (PIXEL_SIZE ** 2)
+    else:
+        print("⚠ Advertencia: Columna 'Area_pixels' no detectada en la matriz morfológica; "
+              "se omite la generación del gráfico de área.")
+
+    print("Estandarizando metadatos...")
+    df_morfo["Grupo_Plot"] = df_morfo[col_video].apply(determinar_grupo)
+    df_movi["Grupo_Plot"] = df_movi[col_video].apply(determinar_grupo)
+
+    df_morfo = df_morfo.dropna(subset=[col_video, "Grupo_Plot"]).sort_values(by=["Grupo_Plot", col_video])
+    df_movi = df_movi.dropna(subset=[col_video, "Grupo_Plot"]).sort_values(by=["Grupo_Plot", col_video])
+
+    # =========================================================================
+    # --- CONFIGURACIÓN DE LA PALETA CROMÁTICA ---
+    # =========================================================================
+    paleta_colores = {
+        "Control_Global": "#3498db", 
+        "si_24H": "#f1c40f",         
+        "si_48H": "#e91e5e",         
+        "si_72H": "#ff1100",         
+        "Otros": "#95a5a6"           
+    }
+    
+    # Restricción de la paleta a los grupos experimentales con representación empírica en la base de datos
+    grupos_presentes = df_movi["Grupo_Plot"].unique()
+    paleta_activa = {k: v for k, v in paleta_colores.items() if k in grupos_presentes}
+
+    # Exportación aislada de la leyenda descriptiva
+    exportar_leyenda(paleta_activa, CARPETA_SALIDA)
+
+    # Identificación y mapeo de las variables disponibles para la generación de gráficos
+    graficos_a_hacer = []
+    
+    for posibles_nombres, titulo in VARS_MORFO:
+        col_real = encontrar_columna(df_morfo, posibles_nombres)
+        if col_real:
+            graficos_a_hacer.append({"df": df_morfo, "col_y": col_real, "titulo": titulo})
+            
+    for posibles_nombres, titulo in VARS_MOVI:
+        col_real = encontrar_columna(df_movi, posibles_nombres)
+        if col_real:
+            graficos_a_hacer.append({"df": df_movi, "col_y": col_real, "titulo": titulo})
+
+    if not graficos_a_hacer:
+        print("❌ Ausencia de variables compatibles para el renderizado gráfico.")
+        return
+
+    print(f"\nGenerando {len(graficos_a_hacer)} diagramas de cajas (Boxplots)...")
+    
+    for config in graficos_a_hacer:
+        plt.figure()
+        
+        ax = sns.boxplot(
+            data=config["df"], 
+            x=col_video, 
+            y=config["col_y"], 
+            hue="Grupo_Plot", 
+            palette=paleta_activa,
+            showfliers=False, 
+            linewidth=1.8,   
+            width=0.4        
+        )
+        
+        ax.set_title(config["titulo"], fontweight="bold", pad=15)
+        ax.set_ylabel(config["titulo"])
+        ax.set_xlabel("Célula")
+        
+        # Supresión de las etiquetas del eje horizontal para optimización del espacio visual
+        ax.set_xticklabels([])
+        ax.tick_params(axis='x', bottom=False)
+        
+        # Supresión de la leyenda interna (sustituida por la exportación independiente)
+        if ax.get_legend():
+            ax.get_legend().remove()
+            
+        sns.despine()
+        plt.tight_layout()
+        
+        # Exportación del diagrama gráfico individual
+        nombre_archivo = f"Boxplot_{config['titulo'].split('(')[0].strip().replace(' ', '_')}.png"
+        ruta_guardado = os.path.join(CARPETA_SALIDA, nombre_archivo)
+        plt.savefig(ruta_guardado, dpi=300)
+        plt.close()
+        print(f" -> Exportado: {nombre_archivo}")
+        
+    print(f"\n✅ ¡Proceso de renderizado completado!\nDirectorio de destino: {CARPETA_SALIDA}")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,280 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import warnings
+
+# Supresión de advertencias matemáticas de ejecución
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+
+# =============================================================================
+# --- CONFIGURACIÓN DE PARÁMETROS ---
+# =============================================================================
+PIXEL_SIZE = 0.05       # Resolución espacial (micras/píxel)
+MIN_FRAMES = 10         # Umbral de persistencia temporal mínima (número de frames)
+BIN_WIDTH = 0.05        # Amplitud de los intervalos del histograma (50 nm)
+MAX_DIST = 1            # Límite superior de distancia espacial a representar (micras)
+
+# Definición de directorios de trabajo y rutas de exportación
+CARPETA_BASE = "Videos_Mitocondrias"
+CARPETA_RESULTADOS = os.path.join(CARPETA_BASE, "Resultados Analisis_TFG")
+ARCHIVO_INPUT = os.path.join(CARPETA_RESULTADOS, "Master_Analisis_Mitocondrias_Filtrado.xlsx")
+ARCHIVO_OUTPUT_EXCEL = os.path.join(CARPETA_RESULTADOS, "Resumen Desplazamiento Mitocondrias Control Unificado.xlsx")
+CARPETA_HISTOGRAMAS = os.path.join(CARPETA_RESULTADOS, "Histogramas desplazamientos Control")
+
+def determinar_grupo_y_origen(nombre_video):
+    """
+    Análisis y clasificación paramétrica del identificador del vídeo. 
+    Retorna el grupo de agregación para el análisis (ej. Control_Global) 
+    y la procedencia experimental real (ej. Control_24H).
+    """
+    nombre_lower = nombre_video.lower()
+    
+    # 1. Extracción del factor temporal
+    tiempo = ""
+    if "24h" in nombre_lower: tiempo = "24H"
+    elif "48h" in nombre_lower: tiempo = "48H"
+    elif "72h" in nombre_lower: tiempo = "72H"
+    else: tiempo = "Desconocido"
+    
+    # 2. Asignación de tratamiento y agregación poblacional (Pooling)
+    if "control" in nombre_lower:
+        grupo_original = f"Control_{tiempo}"
+        grupo_agregado = "Control_Global" 
+    elif "si" in nombre_lower:
+        grupo_original = f"si_{tiempo}"
+        grupo_agregado = f"si_{tiempo}"
+    else:
+        grupo_original = f"Otros_{tiempo}"
+        grupo_agregado = f"Otros_{tiempo}"
+        
+    return grupo_agregado, grupo_original
+
+def calcular_desplazamientos(df_track, pixel_size):
+    """
+    Cuantificación de los desplazamientos espaciales iterativos (steps) 
+    a lo largo de una trayectoria.
+    """
+    x = df_track['Pos_X'].values * pixel_size
+    y = df_track['Pos_Y'].values * pixel_size
+    
+    dx = np.diff(x)
+    dy = np.diff(y)
+    distancias = np.sqrt(dx**2 + dy**2)
+    return distancias
+
+def configurar_estilo_grafico():
+    """
+    Configuración de parámetros tipográficos y de estilo de la librería 
+    gráfica orientada a la homogeneización visual académica.
+    """
+    sns.set_theme(style="whitegrid")
+    plt.rcParams.update({
+        'figure.max_open_warning': 0,
+        'axes.labelsize': 16,          
+        'axes.titlesize': 16,          
+        'xtick.labelsize': 13,         
+        'ytick.labelsize': 13,         
+        'legend.fontsize': 13,         
+        'legend.title_fontsize': 14    
+    })
+
+def main():
+    configurar_estilo_grafico()
+    
+    print("--- INICIALIZANDO ANÁLISIS DE DESPLAZAMIENTOS ---")
+    
+    if not os.path.exists(ARCHIVO_INPUT):
+        print(f"Error de lectura: Archivo no localizado en {ARCHIVO_INPUT}")
+        return
+        
+    print("Cargando matriz de datos consolidada (Excel maestro)...")
+    df_traj = pd.read_excel(ARCHIVO_INPUT, sheet_name="Trayectorias Totales")
+
+    # 1. Supresión de registros carentes de identificador válido
+    df_traj = df_traj.dropna(subset=['Nombre del vídeo'])
+    # 2. Estandarización del tipo de dato a cadena de caracteres (String)
+    df_traj['Nombre del vídeo'] = df_traj['Nombre del vídeo'].astype(str)
+    
+    bins = np.arange(0, MAX_DIST + BIN_WIDTH, BIN_WIDTH)
+    bin_labels = [f"{round(b,3)}-{round(b+BIN_WIDTH,3)}" for b in bins[:-1]]
+    
+    datos_exportar = [] 
+    data_tree = {} 
+    
+    videos = df_traj['Nombre del vídeo'].unique()
+    print(f"Procesando {len(videos)} registros poblacionales...")
+    
+    for video in videos:
+        grupo_agregado, grupo_original = determinar_grupo_y_origen(video)
+        
+        # Concatenación del prefijo de origen en grupos control para preservar la trazabilidad
+        if "Control" in grupo_agregado:
+            nombre_video_final = f"{grupo_original}_{video}"
+        else:
+            nombre_video_final = video
+            
+        if grupo_agregado not in data_tree:
+            data_tree[grupo_agregado] = {}
+        if nombre_video_final not in data_tree[grupo_agregado]:
+            data_tree[grupo_agregado][nombre_video_final] = []
+            
+        df_v = df_traj[df_traj['Nombre del vídeo'] == video]
+        track_ids = df_v['Track_ID'].unique()
+        
+        for track_id in track_ids:
+            # 1. Extracción de la secuencia temporal completa de la trayectoria
+            track_data = df_v[df_v['Track_ID'] == track_id].sort_values('Frame')
+            
+            # 2. CONTROL DE CALIDAD: Eliminación de duplicidades temporales. 
+            # Se conserva exclusivamente el primer registro en caso de frames repetidos.
+            track_data = track_data.drop_duplicates(subset=['Frame'], keep='first')
+            
+            # 3. Aplicación del filtro de persistencia temporal mínima
+            if len(track_data) <= MIN_FRAMES:
+                continue
+            
+            pasos = calcular_desplazamientos(track_data, PIXEL_SIZE)
+            data_tree[grupo_agregado][nombre_video_final].extend(pasos)
+            
+            # --- CONSOLIDACIÓN TABULAR (EXCEL) ---
+            hist_counts, _ = np.histogram(pasos, bins=bins)
+            
+            fila = {
+                "Nombre del vídeo": nombre_video_final,
+                "Procedencia": grupo_original,
+                "Grupo Final": grupo_agregado,
+                "Track_ID": track_id,
+                "Num_Frames": len(track_data),
+                "Total_Pasos": len(pasos)
+            }
+            for i, label in enumerate(bin_labels):
+                fila[label] = hist_counts[i]
+                
+            datos_exportar.append(fila)
+            
+            # --- RENDERIZADO DE GRÁFICOS INDIVIDUALES ---
+            ruta_indiv = os.path.join(CARPETA_HISTOGRAMAS, "Histogramas mitocondrias individuales", nombre_video_final)
+            if not os.path.exists(ruta_indiv): os.makedirs(ruta_indiv)
+            
+            plt.figure(figsize=(6, 4))
+            sns.histplot(pasos, bins=bins, kde=True, stat='probability', element="step", color='gray')
+            plt.title(f"Mito {track_id} ({nombre_video_final})")
+            plt.xlabel("Desplazamiento (µm)")
+            plt.ylabel("Probabilidad")
+            plt.xlim(0, MAX_DIST) 
+            plt.savefig(os.path.join(ruta_indiv, f"Track_{track_id}.png"), dpi=100)
+            plt.close()
+
+    # --- EXPORTACIÓN DEL RESUMEN METODOLÓGICO ---
+    print("\nExportando matriz resumen...")
+    if datos_exportar:
+        df_export = pd.DataFrame(datos_exportar)
+        df_export.to_excel(ARCHIVO_OUTPUT_EXCEL, index=False)
+        print(f"Documento consolidado en: {ARCHIVO_OUTPUT_EXCEL}")
+    else:
+        print("Advertencia: Ausencia de trayectorias que superen el umbral de persistencia (>10 frames).")
+        return
+
+    # --- GENERACIÓN DE COMPARATIVAS INTRA-GRUPO ---
+    print("\nGenerando distribuciones intra-grupo...")
+    ruta_por_video = os.path.join(CARPETA_HISTOGRAMAS, "Histogramas por vídeo")
+    data_all_groups = {} 
+    
+    for grupo, videos_dict in data_tree.items():
+        ruta_grupo_vid = os.path.join(ruta_por_video, grupo)
+        if not os.path.exists(ruta_grupo_vid): os.makedirs(ruta_grupo_vid)
+        
+        all_steps_grupo = []
+        plt.figure(figsize=(12, 8))
+        
+        for vid_name, pasos_vid in videos_dict.items():
+            if len(pasos_vid) == 0: continue
+            all_steps_grupo.extend(pasos_vid)
+            
+            # Renderizado de la distribución específica por réplica experimental
+            plt.figure(figsize=(6, 4))
+            sns.histplot(pasos_vid, bins=bins, kde=True, stat='density', color='skyblue')
+            plt.title(f"Desplazamientos: {vid_name}")
+            plt.xlabel("Desplazamiento (µm)")
+            plt.ylabel("Densidad")
+            plt.xlim(0, MAX_DIST)
+            plt.savefig(os.path.join(ruta_grupo_vid, f"Hist_{vid_name}.png"))
+            plt.close()
+            
+            # Integración a la curva de densidad comparativa del grupo poblacional
+            plt.figure(200) # Reutilización del identificador de figura para superposición
+            sns.kdeplot(pasos_vid, clip=(0, MAX_DIST), label=vid_name, alpha=0.3, bw_adjust=1.5)
+            
+        plt.figure(200)
+        plt.title(f"Comparativa Vídeos - Grupo {grupo}")
+        plt.xlabel("Desplazamiento (µm)")
+        plt.ylabel("Densidad")
+        plt.xlim(0, MAX_DIST)
+        # Adaptación del tamaño de fuente de la leyenda para mantener homogeneidad tipográfica
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
+        plt.tight_layout()
+        plt.savefig(os.path.join(ruta_grupo_vid, f"COMPARATIVA_VIDEOS_{grupo}.png"))
+        plt.close(200)
+        
+        data_all_groups[grupo] = all_steps_grupo
+
+    # --- GENERACIÓN DE LA COMPARATIVA FINAL INTER-GRUPO ---
+    print("\nGenerando representación gráfica de las comparativas inter-grupo...")
+    ruta_por_grupo = os.path.join(CARPETA_HISTOGRAMAS, "Histogramas por grupo")
+    if not os.path.exists(ruta_por_grupo): os.makedirs(ruta_por_grupo)
+    
+    # Asignación dinámica de la paleta cromática paramétrica
+    color_map = {}
+    if "Control_Global" in data_all_groups:
+        color_map["Control_Global"] = "#2c3e50" 
+        
+    si_groups = sorted([g for g in data_all_groups.keys() if g.startswith("si_")])
+    if si_groups:
+        paleta_si = sns.color_palette("Reds", n_colors=len(si_groups) + 1)[1:]
+        for i, g in enumerate(si_groups):
+            color_map[g] = paleta_si[i]
+            
+    # Asignación cromática residual para grupos experimentales adicionales
+    otros = [g for g in data_all_groups.keys() if g not in color_map]
+    if otros:
+        paleta_otros = sns.color_palette("Greens", len(otros))
+        for i, g in enumerate(otros):
+            color_map[g] = paleta_otros[i]
+
+    plt.figure(300, figsize=(10, 6))
+    
+    for grupo, pasos_total_grupo in data_all_groups.items():
+        if len(pasos_total_grupo) == 0: continue
+        color_asignado = color_map.get(grupo, "gray")
+        
+        # Renderizado de la distribución global específica del grupo
+        plt.figure(figsize=(8, 6))
+        sns.histplot(pasos_total_grupo, bins=bins, kde=True, stat='density', color=color_asignado)
+        plt.title(f"Distribución Global: {grupo}")
+        plt.xlabel("Desplazamiento (µm)")
+        plt.ylabel("Densidad")
+        plt.xlim(0, MAX_DIST)
+        plt.savefig(os.path.join(ruta_por_grupo, f"Hist_Global_{grupo}.png"))
+        plt.close()
+        
+        # Superposición en el lienzo principal (Pooling inter-celular)
+        plt.figure(300)
+        sns.kdeplot(pasos_total_grupo, clip=(0, MAX_DIST), label=grupo, color=color_asignado, linewidth=2.5, bw_adjust=1.2)
+
+    plt.figure(300)
+    plt.title("Comparativa de Desplazamientos: Control vs Silenciamiento")
+    plt.xlabel("Desplazamiento (µm)")
+    plt.ylabel("Densidad de Probabilidad")
+    plt.xlim(0, MAX_DIST)
+    plt.grid(True, alpha=0.3)
+    plt.legend(title="Grupos")
+    plt.tight_layout()
+    plt.savefig(os.path.join(ruta_por_grupo, "COMPARATIVA_FINAL_GRUPOS.png"), dpi=150)
+    plt.close(300)
+    
+    print("\n¡PROCESO DE EXPORTACIÓN Y RENDERIZADO FINALIZADO CON ÉXITO!")
+
+if __name__ == "__main__":
+    main()

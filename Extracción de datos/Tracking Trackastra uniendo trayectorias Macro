@@ -1,0 +1,356 @@
+import tifffile
+import pandas as pd
+import numpy as np
+import os
+import glob
+import torch
+from skimage.measure import regionprops_table
+from scipy.spatial.distance import euclidean
+from tqdm import tqdm
+
+# --- IMPORTACIÓN DE LIBRERÍAS DE TRACKASTRA ---
+from trackastra.model import Trackastra
+from trackastra.tracking import graph_to_ctc, graph_to_napari_tracks
+
+# =============================================================================
+# 1. CONFIGURACIÓN
+# =============================================================================
+
+# Directorio de máscaras de segmentación
+CARPETA_MASCARAS = r"Project001 Máscaras 3 Capas lng_adaptive"
+
+# Directorio de imágenes originales (Raw)
+CARPETA_RAIZ_RAW = r"Project001" 
+
+# Directorio principal de exportación
+CARPETA_SALIDA_PRINCIPAL = r"Project001 Tracking Trackastra 3 Capas"
+
+# Parámetros umbrales para la fusión de trayectorias (Track Merging)
+MAX_GAP_FRAMES = 5   
+MAX_DISTANCE_PX = 50 
+
+# =============================================================================
+# 2. FUNCIONES AUXILIARES
+# =============================================================================
+
+def merge_fragmented_tracks(df, max_gap_frames=3, max_distance=50):
+    if len(df) == 0: return df
+    
+    track_info = {}
+    for track_id, group in df.groupby('Track_ID'):
+        group = group.sort_values('Frame')
+        track_info[track_id] = {
+            'start_t': group.iloc[0]['Frame'],
+            'end_t': group.iloc[-1]['Frame'],
+            'start_pos': np.array([group.iloc[0]['Pos_X'], group.iloc[0]['Pos_Y']]),
+            'end_pos': np.array([group.iloc[-1]['Pos_X'], group.iloc[-1]['Pos_Y']]),
+            'mean_area': group['Area_pixels'].mean()
+        }
+
+    merges = {} 
+    all_tracks = list(track_info.keys())
+    for track_new in all_tracks:
+        for track_old in all_tracks:
+            if track_new == track_old: continue
+            gap = track_info[track_new]['start_t'] - track_info[track_old]['end_t']
+            
+            if 0 < gap <= max_gap_frames:
+                dist = euclidean(track_info[track_old]['end_pos'], track_info[track_new]['start_pos'])
+                
+                area_old = track_info[track_old]['mean_area']
+                area_ratio = track_info[track_new]['mean_area'] / area_old if area_old > 0 else 0
+
+                if dist < max_distance and 0.5 < area_ratio < 2.0:
+                    merges[track_new] = track_old
+                    track_info[track_old]['end_t'] = track_info[track_new]['end_t']
+                    track_info[track_old]['end_pos'] = track_info[track_new]['end_pos']
+                    break 
+
+    df_merged = df.copy()
+    count = 0
+    for new_id, old_id in merges.items():
+        df_merged.loc[df_merged['Track_ID'] == new_id, 'Track_ID'] = old_id
+        count += 1
+    
+    if count > 0:
+        print(f"      -> Fusionados {count} fragmentos de trayectorias.")
+    return df_merged
+
+def procesar_video(path_mask, path_raw, carpeta_salida, nombre_video, model):
+    
+    # Definición de la nomenclatura de los archivos de salida
+    nombre_excel = f"{nombre_video}_Tracking_Trackastra_3CAPAS_Fondo_lng.xlsx"
+    nombre_csv_backup = f"{nombre_video}_Tracking_Trackastra_3CAPAS_Fondo_lng.csv"
+    
+    nombre_tiff_raw = f"{nombre_video}_raw.tif"
+    nombre_tiff_seg = f"{nombre_video}_segmentation.tif"
+    nombre_tiff_track = f"{nombre_video}_track.tif"
+    
+    ruta_excel = os.path.join(carpeta_salida, nombre_excel)
+    
+    # Verificación de existencia previa para omitir procesamientos redundantes
+    if os.path.exists(ruta_excel) or os.path.exists(os.path.join(carpeta_salida, nombre_csv_backup)):
+        print(f"   -> Ya existe resultado, saltando: {nombre_video}")
+        return
+
+    # 1. Carga de datos de entrada
+    try:
+        masks = tifffile.imread(path_mask)
+        masks = masks.astype(np.int32)
+    except Exception as e:
+        print(f"   ERROR cargando máscara: {e}")
+        return
+
+    if path_raw and os.path.exists(path_raw):
+        imgs = tifffile.imread(path_raw)
+        existe_raw = True
+    else:
+        print("      AVISO: No se encontró Raw, usando máscara como imagen.")
+        imgs = masks.astype(np.float32)
+        existe_raw = False
+
+    if masks.ndim == 2:
+        masks = masks[np.newaxis, ...]
+        imgs = imgs[np.newaxis, ...]
+
+    # 2. Ejecución del algoritmo de seguimiento (Tracking)
+    resultado_tracking = model.track(imgs, masks, mode="greedy")
+    track_graph = resultado_tracking[0] if isinstance(resultado_tracking, tuple) else resultado_tracking
+
+    # 3. Extracción y estructuración de métricas espaciotemporales
+    data_tracks, _, _ = graph_to_napari_tracks(track_graph)
+    
+    track_mapping = {}
+    for row in data_tracks:
+        track_id = int(row[0])
+        t = int(row[1])
+        y = int(round(row[2]))
+        x = int(round(row[3]))
+        if 0 <= t < masks.shape[0] and 0 <= y < masks.shape[1] and 0 <= x < masks.shape[2]:
+            original_label = masks[t, y, x]
+            if original_label != 0:
+                track_mapping[(t, original_label)] = track_id
+
+    props_list = []
+    propiedades = ('label', 'area', 'major_axis_length', 'minor_axis_length', 'eccentricity', 'solidity', 'centroid')
+    
+    for t in range(masks.shape[0]):
+        frame_mask = masks[t]
+        if np.any(frame_mask):
+            props = regionprops_table(frame_mask, properties=propiedades)
+            df_frame = pd.DataFrame(props)
+            df_frame['Frame'] = t
+            props_list.append(df_frame)
+
+    if not props_list:
+        print("      ERROR: Máscara vacía.")
+        return
+
+    df_morfologia = pd.concat(props_list, ignore_index=True)
+    df_morfologia = df_morfologia.copy()
+    
+    df_morfologia['label'] = df_morfologia['label'].astype(int)
+    def get_id(row): return track_mapping.get((int(row['Frame']), int(row['label'])), None)
+    df_morfologia['Track_ID'] = df_morfologia.apply(get_id, axis=1)
+    
+    df_final = df_morfologia.dropna(subset=['Track_ID']).copy()
+    
+    if len(df_final) == 0:
+        print("      ERROR: Fallo al vincular objetos (Mapeo vacío).")
+        return
+
+    df_final['Track_ID'] = df_final['Track_ID'].astype(int)
+    
+    df_final = df_final.rename(columns={
+        'centroid-0': 'Pos_Y', 'centroid-1': 'Pos_X',
+        'area': 'Area_pixels',
+        'major_axis_length': 'Longitud_Eje_Mayor', 
+        'minor_axis_length': 'Longitud_Eje_Menor',
+        'eccentricity': 'Excentricidad', 'solidity': 'Solidez'
+    })
+    
+    for c in ['Pos_Z', 'Generacion', 'Estado_Track', 'Es_Dummy', 'Parent_ID']:
+        df_final[c] = 0
+
+    # 4. Fusión de fragmentos de trayectorias
+    df_merged = merge_fragmented_tracks(df_final, max_gap_frames=MAX_GAP_FRAMES, max_distance=MAX_DISTANCE_PX)
+    
+    col_orden = ['Track_ID', 'label', 'Frame', 'Pos_X', 'Pos_Y', 'Area_pixels', 
+                 'Longitud_Eje_Mayor', 'Longitud_Eje_Menor', 'Excentricidad', 'Solidez']
+    
+    cols_to_save = [c for c in col_orden if c in df_merged.columns]
+    df_merged = df_merged[cols_to_save].sort_values(by=['Track_ID', 'Frame'])
+    
+    # Exportación tabular a formato Excel (con alternativa CSV ante fallos de dependencias)
+    archivo_datos_final = nombre_excel
+    try:
+        df_merged.to_excel(ruta_excel, index=False)
+    except ModuleNotFoundError:
+        archivo_datos_final = nombre_csv_backup
+        df_merged.to_csv(os.path.join(carpeta_salida, nombre_csv_backup), index=False, sep=';')
+    
+    # 5. Exportación de secuencias volumétricas (TIFF)
+    if existe_raw:
+        tifffile.imwrite(os.path.join(carpeta_salida, nombre_tiff_raw), imgs)
+    
+    tifffile.imwrite(os.path.join(carpeta_salida, nombre_tiff_seg), masks)
+    
+    # Generación de la secuencia temporal con identificadores unificados
+    video_tracking = np.zeros_like(masks, dtype=np.uint16)
+    grupos = df_merged.groupby('Frame')
+    
+    for t in range(masks.shape[0]):
+        if t in grupos.groups:
+            datos_t = grupos.get_group(t)
+            mascara_orig = masks[t]
+            max_lbl = mascara_orig.max()
+            if max_lbl > 0:
+                mapper = np.zeros(max_lbl + 1, dtype=np.uint16)
+                lbls = datos_t['label'].values.astype(int)
+                ids = datos_t['Track_ID'].values.astype(int)
+                
+                valid = lbls <= max_lbl
+                mapper[lbls[valid]] = ids[valid]
+                video_tracking[t] = mapper[mascara_orig]
+                
+    tifffile.imwrite(os.path.join(carpeta_salida, nombre_tiff_track), video_tracking, compression='zlib')
+    
+    # =========================================================================
+    # 6. GENERACIÓN DE SCRIPT DE VISUALIZACIÓN (Anotación textual en Napari)
+    # =========================================================================
+    
+    ruta_script_vis = os.path.join(carpeta_salida, f"VER_RESULTADOS_{nombre_video}.py")
+    
+    script_content = f"""import napari
+import tifffile
+import pandas as pd
+import numpy as np
+import os
+
+# --- SCRIPT DE VISUALIZACIÓN AUTOMATIZADA: {nombre_video} ---
+
+# Resolución de la ruta relativa al directorio de ejecución
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
+print(f"Cargando datos desde: {{base_dir}}")
+
+# Asignación de archivos de origen
+f_raw = r"{nombre_tiff_raw}"
+f_track = r"{nombre_tiff_track}"
+f_datos = r"{archivo_datos_final}"
+
+try:
+    viewer = napari.Viewer()
+    
+    # 1. Carga de la imagen original (Raw)
+    path_raw = os.path.join(base_dir, f_raw)
+    if os.path.exists(path_raw):
+        img_raw = tifffile.imread(path_raw)
+        viewer.add_image(img_raw, name='Imagen Original (Raw)')
+    
+    # 2. Carga de la secuencia de seguimiento (Valor de píxel = ID de trayectoria)
+    path_track = os.path.join(base_dir, f_track)
+    if os.path.exists(path_track):
+        img_track = tifffile.imread(path_track)
+        viewer.add_labels(img_track, name='Tracking (IDs)')
+        
+    # 3. Importación de datos tabulares y superposición espacial de identificadores
+    path_datos = os.path.join(base_dir, f_datos)
+    if os.path.exists(path_datos):
+        if f_datos.endswith('.xlsx'):
+            df = pd.read_excel(path_datos)
+        else:
+            df = pd.read_csv(path_datos, sep=';')
+            
+        # Incorporación de la capa de trayectorias (representación lineal)
+        data_tracks = df[['Track_ID', 'Frame', 'Pos_Y', 'Pos_X']].to_numpy(dtype=np.float32)
+        viewer.add_tracks(data_tracks, name='Trayectorias', tail_width=2, tail_length=20, color_by='track_id')
+        
+        # Incorporación de la capa de puntos con anotaciones textuales
+        puntos_coords = df[['Frame', 'Pos_Y', 'Pos_X']].values
+        text_params = {{
+            'string': '{{label}}',
+            'size': 8,
+            'color': 'cyan',
+            'translation': np.array([0, -5, 0])
+        }}
+        
+        viewer.add_points(
+            puntos_coords, 
+            properties={{'label': df['Track_ID']}}, 
+            text=text_params, 
+            size=0, 
+            name='IDs (Texto)'
+        )
+        
+    print("¡Napari cargado correctamente!")
+    napari.run()
+
+except Exception as e:
+    print(f"Error al abrir napari: {{e}}")
+    input("Presiona Enter para salir...")
+"""
+    
+    with open(ruta_script_vis, "w", encoding="utf-8") as f:
+        f.write(script_content)
+
+    print(f"   -> Procesado OK: {nombre_video}")
+
+
+# =============================================================================
+# 3. BLOQUE DE EJECUCIÓN PRINCIPAL
+# =============================================================================
+
+def main():
+    print("--- INICIANDO TRACKING MASIVO (SALIDA EXCEL + VIEWER) ---")
+    
+    abs_path_mask = os.path.abspath(CARPETA_MASCARAS)
+    print(f"Buscando máscaras en: {abs_path_mask}")
+    
+    if not os.path.exists(abs_path_mask):
+        print("\nERROR CRÍTICO: La carpeta de máscaras no existe.")
+        return
+
+    # 1. Inicialización del modelo predictivo
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Cargando modelo en {device.upper()}...")
+    model = Trackastra.from_pretrained("general_2d", device=device)
+    
+    # 2. Localización de secuencias a procesar
+    patron = os.path.join(CARPETA_MASCARAS, "**", "*_Fusionado_3_Capas_Clusterizado.tif")
+    archivos_mascaras = glob.glob(patron, recursive=True)
+    
+    if not archivos_mascaras:
+        print(f"No se encontraron archivos TIFF con el patrón '*_Fusionado_3_Capas_Clusterizado.tif'.")
+        return
+        
+    print(f"Se encontraron {len(archivos_mascaras)} vídeos para trackear.")
+    
+    # 3. Iteración y procesamiento de secuencias
+    for path_mask in tqdm(archivos_mascaras, desc="Progreso Total"):
+        
+        filename = os.path.basename(path_mask)
+        nombre_video = filename.replace("_Fusionado_3_Capas_Clusterizado.tif", "")
+        
+        # Búsqueda del archivo RAW correspondiente
+        patron_raw = os.path.join(CARPETA_RAIZ_RAW, "**", f"{nombre_video}*MIP.tif")
+        posibles_raw = glob.glob(patron_raw, recursive=True)
+        
+        path_raw = None
+        if posibles_raw:
+            path_raw = min(posibles_raw, key=len)
+        
+        # Creación del directorio de salida específico
+        nombre_subcarpeta = f"{nombre_video}_Tracking_Trackastra_3_Capas"
+        ruta_salida_video = os.path.join(CARPETA_SALIDA_PRINCIPAL, nombre_subcarpeta)
+        
+        if not os.path.exists(ruta_salida_video):
+            os.makedirs(ruta_salida_video, exist_ok=True)
+            
+        procesar_video(path_mask, path_raw, ruta_salida_video, nombre_video, model)
+
+    print("\n¡TRACKING MASIVO COMPLETADO!")
+    print(f"Resultados en: {os.path.abspath(CARPETA_SALIDA_PRINCIPAL)}")
+
+if __name__ == "__main__":
+    main()

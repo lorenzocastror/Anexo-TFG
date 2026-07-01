@@ -1,0 +1,179 @@
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+
+# Supresión de advertencias de ejecución
+warnings.filterwarnings('ignore')
+
+# =============================================================================
+# --- CONFIGURACIÓN DE RUTAS ---
+# =============================================================================
+ARCHIVO_MORFOLOGIA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Master_Analisis_Mitocondrias_Filtrado.xlsx"
+ARCHIVO_MOVIMIENTO = r"Videos_Mitocondrias\Resultados Analisis_TFG\Metricas_Detalladas_Mitocondrias_10_Frames_TFG.xlsx"
+ARCHIVO_RATIO_LIMPID = r"Videos_Mitocondrias\Resultados Analisis_TFG\Ratios_Movimiento\Ratios_Mitocondrias_Area_Mayor_sobre_Menor.xlsx"
+
+CARPETA_SALIDA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Ratios_Movimiento"
+NOMBRE_EXCEL = "Matriz_Correlaciones_Morfologia_y_Movimiento.xlsx"
+NOMBRE_GRAFICO = "Heatmap_Correlaciones_Mitocondriales.png"
+
+# =============================================================================
+# --- MAPEADO PARAMÉTRICO DE VARIABLES ---
+# =============================================================================
+VARS_MORFO = [
+    (["Area_pixels", "Área (px cuadrados)", "Area", "Área"], "Área"),
+    (["Major_Axis_Length", "Longitud Eje Mayor (px)", "Longitud Eje Mayor"], "Longitud Eje Mayor"),
+    (["Minor_Axis_Length", "Longitud Eje Menor (px)", "Longitud Eje Menor"], "Longitud Eje Menor"),
+    (["Eccentricity", "Excentricidad"], "Excentricidad"),
+    (["Solidity", "Solidez"], "Solidez")
+]
+
+VARS_MOVI = [
+    (["Total_Distance_um", "Distancia Total (um)"], "Distancia Total"),
+    (["Net_Displacement_um", "Desplazamiento neto (um)", "Desplazamiento neto"], "Desplazamiento Neto"),
+    (["Mean_Velocity_um_s", "Velocidad Media (um/s)"], "Velocidad Media"),
+    (["Max_Velocity_um_s", "Velocidad Máxima (um/s)"], "Velocidad Máxima"),
+    (["Std_Velocity", "Velocidad Estándar"], "Velocidad Estándar"),
+    (["Directionality", "Direccionalidad"], "Direccionalidad")
+]
+
+POSIBLES_NOMBRES_RATIO = ["Ratio_Movilidad", "Ratio_Movimiento", "Ratio de Movilidad", "Movilidad"]
+# =============================================================================
+
+def encontrar_columna(df, posibles_nombres):
+    """Identificación de la nomenclatura exacta de una variable estructural dentro del DataFrame."""
+    for nombre in posibles_nombres:
+        if nombre in df.columns:
+            return nombre
+    return None
+
+def configurar_estilo_heatmap():
+    """Configuración de parámetros tipográficos y de escala visual orientada a representaciones de alta resolución."""
+    sns.set_theme(style="white")
+    plt.rcParams.update({
+        'font.family': 'sans-serif',
+        'axes.labelsize': 28,     # Escala tipográfica para etiquetas de ejes
+        'xtick.labelsize': 24,    # Escala tipográfica para las variables del eje de abscisas
+        'ytick.labelsize': 24,    # Escala tipográfica para las variables del eje de ordenadas
+    })
+
+def main():
+    if not os.path.exists(CARPETA_SALIDA):
+        os.makedirs(CARPETA_SALIDA)
+
+    print("1. Cargando archivos Excel...")
+    try:
+        df_morfo = pd.read_excel(ARCHIVO_MORFOLOGIA, sheet_name="Trayectorias Totales")
+        df_movi = pd.read_excel(ARCHIVO_MOVIMIENTO)
+        df_ratio = pd.read_excel(ARCHIVO_RATIO_LIMPID)
+    except Exception as e:
+        print(f"❌ Error al cargar los Excels. Revisa las rutas o nombres:\n{e}")
+        return
+
+    col_video = "Nombre del vídeo"
+    col_track = "Track_ID"
+
+    for name, df_check in [("Morfología", df_morfo), ("Movimiento", df_movi), ("Ratio", df_ratio)]:
+        if col_video not in df_check.columns or col_track not in df_check.columns:
+            print(f"❌ Error: El archivo de {name} no contiene las columnas necesarias.")
+            return
+
+    mapeo_nombres_finales = {}
+
+    # 2. Procesamiento de parámetros morfológicos
+    columnas_morfo_reales = []
+    for posibles, titulo in VARS_MORFO:
+        col_real = encontrar_columna(df_morfo, posibles)
+        if col_real and col_real not in [col_video, col_track]:
+            columnas_morfo_reales.append(col_real)
+            mapeo_nombres_finales[col_real] = titulo
+
+    df_morfo_procesado = df_morfo[[col_video, col_track] + columnas_morfo_reales]
+    if df_morfo_procesado.duplicated(subset=[col_video, col_track]).any():
+        df_morfo_procesado = df_morfo_procesado.groupby([col_video, col_track]).mean().reset_index()
+
+    # 3. Procesamiento de parámetros cinemáticos
+    columnas_movi_reales = []
+    for posibles, titulo in VARS_MOVI:
+        col_real = encontrar_columna(df_movi, posibles)
+        if col_real and col_real not in [col_video, col_track]:
+            columnas_movi_reales.append(col_real)
+            mapeo_nombres_finales[col_real] = titulo
+
+    df_movi_procesado = df_movi[[col_video, col_track] + columnas_movi_reales]
+
+    # 4. Procesamiento del ratio de movilidad
+    col_ratio_real = encontrar_columna(df_ratio, POSIBLES_NOMBRES_RATIO)
+    if col_ratio_real:
+        mapeo_nombres_finales[col_ratio_real] = "Ratio de Movilidad"
+        df_ratio_procesado = df_ratio[[col_video, col_track, col_ratio_real]]
+    else:
+        print("❌ Error: No se encontró la columna del Ratio.")
+        return
+
+    # 5. Sincronización e integración de bases de datos
+    df_merged = pd.merge(df_morfo_procesado, df_movi_procesado, on=[col_video, col_track], how='inner')
+    df_final = pd.merge(df_merged, df_ratio_procesado, on=[col_video, col_track], how='inner')
+
+    columnas_finales_numericas = list(dict.fromkeys(columnas_morfo_reales + columnas_movi_reales + [col_ratio_real]))
+    df_analisis = df_final[columnas_finales_numericas].dropna()
+    df_analisis = df_analisis.rename(columns=mapeo_nombres_finales)
+
+    if df_analisis.empty:
+        print("❌ Error: La matriz está vacía tras limpiar los datos.")
+        return
+
+    # 6. Cálculo de la Matriz de Correlación
+    print("Calculando correlaciones...")
+    matriz_correlacion = df_analisis.corr(method='spearman')
+
+    ruta_excel = os.path.join(CARPETA_SALIDA, NOMBRE_EXCEL)
+    matriz_correlacion.to_excel(ruta_excel, sheet_name="Matriz_Correlacion")
+
+    # 7. GENERACIÓN DEL MAPA DE CALOR (HEATMAP)
+    print("Generando el mapa de calor (Heatmap) en alta resolución...")
+    configurar_estilo_heatmap()
+    
+    # Ajuste de las dimensiones del lienzo para prevenir el truncamiento de etiquetas tipográficas
+    plt.figure(figsize=(18, 15))
+
+    mask = np.triu(np.ones_like(matriz_correlacion, dtype=bool))
+    cmap = sns.diverging_palette(230, 20, as_cmap=True)
+
+    ax = sns.heatmap(
+        matriz_correlacion,
+        mask=mask,
+        cmap=cmap,
+        vmax=1.0, vmin=-1.0,
+        center=0,
+        square=True,
+        linewidths=2.0,             # Grosor paramétrico de las líneas de segmentación internas
+        cbar_kws={"shrink": .85}, 
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 20, "weight": "bold"} # Escala tipográfica para los coeficientes de correlación numéricos
+    )
+
+    # Configuración tipográfica de la escala de color
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=20) # Escala tipográfica para los valores del eje de gradiente
+    cbar.set_label("Coeficiente de Correlación de Spearman ($r$)", size=26, labelpad=20) # Escala tipográfica para la etiqueta de la leyenda
+
+    # Ajustes de formato y orientación espacial
+    plt.title("Matriz de Correlación", fontsize=34, fontweight='bold', pad=30) # Escala tipográfica del título principal
+    plt.xticks(rotation=45, ha='right')
+    plt.yticks(rotation=0)
+    
+    plt.tight_layout()
+
+    ruta_grafico = os.path.join(CARPETA_SALIDA, NOMBRE_GRAFICO)
+    plt.savefig(ruta_grafico, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"✅ ¡Proceso finalizado con éxito!")
+    print(f"📊 Heatmap guardado en:\n👉 {os.path.abspath(ruta_grafico)}")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,119 @@
+"""
+====================================================================
+CÁLCULO DE DISTANCIA MEDIA AL CENTRO CELULAR POR MITOCONDRIA
+====================================================================
+"""
+
+import pandas as pd
+import numpy as np
+
+ARCHIVO_ENTRADA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Master_Analisis_Mitocondrias_Filtrado.xlsx"
+ARCHIVO_SALIDA = r"Videos_Mitocondrias\Resultados Analisis_TFG\Distancias_Medias_Mitocondrias.xlsx"
+
+HOJA_TRAYECTORIAS = "Trayectorias Totales"
+HOJA_CELULAS = "Datos Células Totales"
+
+PIXEL_SIZE = 0.05
+MIN_FRAMES = 10
+
+COL_VIDEO = "Nombre del vídeo"
+COL_FRAME = "Frame"
+COL_TRACK_ID = "Track_ID"
+COL_MITO_X = "Pos_X"
+COL_MITO_Y = "Pos_Y"
+COL_CENTRO_X = "Centro_Masa_Celula_X"
+COL_CENTRO_Y = "Centro_Masa_Celula_Y"
+COL_AREA_CELULA = "Area_Celula_px"  # área de la célula en píxeles cuadrados (hoja de células)
+
+print("Leyendo archivo de Excel...")
+df_trayectorias = pd.read_excel(ARCHIVO_ENTRADA, sheet_name=HOJA_TRAYECTORIAS)
+df_celulas = pd.read_excel(ARCHIVO_ENTRADA, sheet_name=HOJA_CELULAS)
+
+df_trayectorias = df_trayectorias.dropna(subset=[COL_VIDEO])
+df_trayectorias[COL_VIDEO] = df_trayectorias[COL_VIDEO].astype(str)
+df_trayectorias = df_trayectorias.drop_duplicates(subset=[COL_VIDEO, COL_TRACK_ID, COL_FRAME])
+
+df_celulas = df_celulas.dropna(subset=[COL_VIDEO])
+df_celulas[COL_VIDEO] = df_celulas[COL_VIDEO].astype(str)
+df_celulas = df_celulas.drop_duplicates(subset=[COL_VIDEO, COL_FRAME])
+
+df_merged = df_trayectorias.merge(df_celulas, on=[COL_VIDEO, COL_FRAME], how="left")
+
+df_merged["Distancia_um"] = np.sqrt(
+    ((df_merged[COL_MITO_X] - df_merged[COL_CENTRO_X]) * PIXEL_SIZE) ** 2 +
+    ((df_merged[COL_MITO_Y] - df_merged[COL_CENTRO_Y]) * PIXEL_SIZE) ** 2
+)
+
+# ====================================================================
+# DISTANCIA AL CENTRO NORMALIZADA (NUEVO)
+# ====================================================================
+# La Distancia_um es una longitud (unidades: µm). El área de la célula
+# es una magnitud de superficie (unidades: µm²), así que no se pueden
+# dividir directamente sin romper la coherencia dimensional. Para
+# normalizar la distancia por el "tamaño" de la célula, primero
+# convertimos esa área en un RADIO EQUIVALENTE (también en µm): el
+# radio que tendría un círculo con esa misma área. Así, dividir una
+# longitud (Distancia_um) entre otra longitud (Radio_Celular_um) da un
+# ratio adimensional, coherente dimensionalmente.
+
+# Paso 1: convertir el área de píxeles² a µm². El factor de conversión
+# de longitud es PIXEL_SIZE, así que el de área es PIXEL_SIZE al
+# cuadrado (1 píxel² = PIXEL_SIZE² µm²).
+df_merged["Area_um2"] = df_merged[COL_AREA_CELULA] * (PIXEL_SIZE ** 2)
+
+# Paso 2: radio equivalente de un círculo con esa área (Área = π·r²
+# despejando r). Esto da, para cada frame, el "tamaño lineal" de la
+# célula en esas unidades, comparable directamente con Distancia_um.
+df_merged["Radio_Celular_um"] = np.sqrt(df_merged["Area_um2"] / np.pi)
+
+# Paso 3: distancia normalizada = distancia real / tamaño de la célula
+# en ese frame. Un valor de 1 significa que la mitocondria está
+# aproximadamente al borde de la célula (a una distancia equivalente
+# al radio); valores menores que 1 indican posiciones más centrales.
+#
+# ⚠️ Importante sobre los ceros/nulos: si Area_Celula_px es 0 o NaN en
+# algún frame (célula no detectada en ese frame, por ejemplo), entonces
+# Radio_Celular_um también es 0 o NaN. Dividir por 0 con NumPy NO da
+# NaN, da "inf" — y pandas SÍ que incluye "inf" al calcular la media
+# (a diferencia de NaN, que pandas ignora automáticamente). Si no se
+# corrige, un único frame con área nula convertiría la media de TODO
+# el track en "inf", invalidando una mitocondria por culpa de un solo
+# frame defectuoso. Por eso, convertimos explícitamente cualquier
+# "inf" resultante en NaN: así pandas lo excluye del promedio, igual
+# que ya hace con los NaN de origen.
+df_merged["Distancia_Normalizada"] = df_merged["Distancia_um"] / df_merged["Radio_Celular_um"]
+df_merged["Distancia_Normalizada"] = df_merged["Distancia_Normalizada"].replace(
+    [np.inf, -np.inf], np.nan
+)
+
+df_resultado = (
+    df_merged
+    .groupby([COL_VIDEO, COL_TRACK_ID], as_index=False)
+    .agg(
+        Distancia_Media_Centro_um=("Distancia_um", "mean"),
+        Distancia_Normalizada_Media=("Distancia_Normalizada", "mean"),
+        N_Frames=(COL_FRAME, "size")
+    )
+)
+
+df_resultado = df_resultado[df_resultado["N_Frames"] > MIN_FRAMES].copy()
+
+def clasificar_grupo_final(nombre_video):
+    nombre = nombre_video.lower()
+    if "control" in nombre:
+        return "Control Global"
+    elif "24h" in nombre:
+        return "si_24H"
+    elif "48h" in nombre:
+        return "si_48H"
+    elif "72h" in nombre:
+        return "si_72H"
+    else:
+        return "Sin_Clasificar"
+
+df_resultado["Grupo Final"] = df_resultado[COL_VIDEO].apply(clasificar_grupo_final)
+
+df_final = df_resultado[[COL_VIDEO, "Grupo Final", COL_TRACK_ID, "Distancia_Media_Centro_um", "Distancia_Normalizada_Media"]]
+
+df_final.to_excel(ARCHIVO_SALIDA, index=False, sheet_name="Distancias_Medias")
+print("\n✅ Proceso completado.")

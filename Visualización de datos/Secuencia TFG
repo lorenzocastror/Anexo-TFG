@@ -1,0 +1,200 @@
+import os
+import cv2
+import tifffile
+import pandas as pd
+import numpy as np
+
+# =============================================================================
+# --- CONFIGURACIÓN DE RUTAS ---
+# =============================================================================
+f_raw = r"Videos_Mitocondrias\Project001 Tracking Trackastra 3 Capas\si_72H_001_Lng_adaptive_Tracking_Trackastra_3_Capas\si_72H_001_Lng_adaptive_raw.tif"
+f_track = r"Videos_Mitocondrias\Project001 Tracking Trackastra 3 Capas\si_72H_001_Lng_adaptive_Tracking_Trackastra_3_Capas\si_72H_001_Lng_adaptive_track.tif"
+f_datos = r"Videos_Mitocondrias\Project001 Tracking Trackastra 3 Capas\si_72H_001_Lng_adaptive_Tracking_Trackastra_3_Capas\si_72H_001_Lng_adaptive_Tracking_Trackastra_3CAPAS_Fondo_lng.xlsx"
+f_mascara_celula = r"Videos_Mitocondrias\Project001 Máscaras 3 Capas lng_adaptive\Máscaras 3 Capas si_72H_001\si_72H_001_Mascara_Celula.tif"
+
+OUTPUT_PATH = r"Videos_Mitocondrias\Resultados Analisis_TFG\Panel_Evolucion_Trayectorias_si_72H.png"
+
+# =============================================================================
+# --- PARÁMETROS DE VISUALIZACIÓN ---
+# =============================================================================
+# Asignación de paleta cromática en formato BGR (OpenCV estándar)
+COLOR_RAW_GREEN = (0, 255, 0)      # Canal verde (Intensidad fluorescente original)
+COLOR_MASK_MAGENTA = (255, 0, 255) # Máscara de segmentación organular
+COLOR_TRACK_LINE = (0, 255, 255)   # Trayectorias cinemáticas (Cyan/Amarillo en RGB inverso)
+GROSOR_LINEA = 2                   # Ajuste de grosor optimizado para exportación de figuras
+
+# Calibración espacial
+PIXEL_SIZE_UM = 0.05      # Resolución espacial de adquisición (µm/px)
+DESIRED_SCALE_UM = 5      # Longitud física de la barra de escala (µm)
+
+
+def normalizar_imagen_8bit(img_slice):
+    """
+    Transformación radiométrica de la matriz de intensidades a una escala 
+    estándar de 8 bits (0-255) para permitir su renderizado en formatos de imagen convencionales.
+    """
+    img_norm = cv2.normalize(img_slice, None, 0, 255, cv2.NORM_MINMAX)
+    return img_norm.astype(np.uint8)
+
+def main():
+    print("Iniciando carga de matrices de bioimagen (TIFF)...")
+    try:
+        raw_stack = tifffile.imread(f_raw)
+        track_stack = tifffile.imread(f_track)
+        celula_mask = tifffile.imread(f_mascara_celula)
+    except FileNotFoundError as e:
+        print(f"❌ Excepción durante la lectura volumétrica: {e}")
+        return
+
+    print("Cargando matriz de coordenadas y métricas de trayectoria...")
+    if f_datos.endswith('.xlsx'):
+        df_tracks = pd.read_excel(f_datos)
+    else:
+        df_tracks = pd.read_csv(f_datos, sep=';')
+        
+    # Depuración de registros espaciotemporales incompletos
+    df_tracks = df_tracks.dropna(subset=['Pos_X', 'Pos_Y', 'Frame'])
+
+    # Sincronización del índice temporal (compatibilidad con base 0 o base 1)
+    frame_offset = 0 if df_tracks['Frame'].min() == 0 else 1
+    total_frames = raw_stack.shape[0]
+
+    # =====================================================================
+    # FILTRADO ESPACIAL RESTRINGIDO (Aislamiento unicelular)
+    # =====================================================================
+    print("Ejecutando aislamiento topológico (eliminación de trayectorias extracelulares)...")
+    ids_validos_globales = set()
+    
+    for i in range(total_frames):
+        tr_slice = track_stack[i]
+        
+        # Compensación dimensional preventiva ante desajustes en la longitud temporal de las máscaras
+        if celula_mask.ndim == 3:
+            t_celula = min(i, celula_mask.shape[0] - 1)
+            c_mask = celula_mask[t_celula]
+        else:
+            c_mask = celula_mask
+            
+        # Extracción de identificadores organulares interceptados por la máscara celular
+        mitos_en_celula = tr_slice[c_mask > 0]
+        ids_validos_globales.update(np.unique(mitos_en_celula))
+        
+    # Supresión del identificador correspondiente al background (0)
+    if 0 in ids_validos_globales:
+        ids_validos_globales.remove(0)
+        
+    # Aplicación del filtro restrictivo a la base de datos cinemática
+    df_tracks = df_tracks[df_tracks['Track_ID'].isin(ids_validos_globales)]
+    print(f"✅ Se han aislado y conservado {len(ids_validos_globales)} trayectorias organulares intra-citoplasmáticas.")
+    # =====================================================================
+
+    # Selección de instantes temporales representativos para la figura (Inicio, Desarrollo, Fin)
+    frames_clave = [0, total_frames // 2, total_frames - 1]
+    paneles = []
+
+    print("Renderizando fotogramas clave...")
+    for t in frames_clave:
+        raw_slice = raw_stack[t]
+        track_slice = track_stack[t]
+        
+        # Extracción del plano focal de segmentación celular correspondiente
+        if celula_mask.ndim == 2:
+            celula_slice = celula_mask
+        else:
+            t_celula = min(t, celula_mask.shape[0] - 1)
+            celula_slice = celula_mask[t_celula]
+
+        # 1. Identificación de la superposición espacial organela-célula en el instante temporal 't'
+        mitos_en_celula_frame = np.where(celula_slice > 0, track_slice, 0)
+
+        # 2. Inicialización del lienzo matricial (RGB/BGR)
+        h, w = raw_slice.shape
+        lienzo_bgr = np.zeros((h, w, 3), dtype=np.uint8)
+
+        # 3. Asignación del canal fluorescente original (Mapeo a Verde)
+        raw_8bit = normalizar_imagen_8bit(raw_slice)
+        lienzo_bgr[:, :, 1] = raw_8bit
+
+        # 4. Superposición de las máscaras de segmentación mitocondrial validadas (Magenta)
+        lienzo_bgr[mitos_en_celula_frame > 0] = COLOR_MASK_MAGENTA
+
+        # 5. Proyección temporal acumulativa de las trayectorias
+        t_df = t + frame_offset
+        df_hasta_t = df_tracks[df_tracks['Frame'] <= t_df]
+        
+        for track_id, group in df_hasta_t.groupby('Track_ID'):
+            group = group.sort_values('Frame')
+            if len(group) < 2:
+                continue 
+            
+            pts = group[['Pos_X', 'Pos_Y']].values.astype(np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            
+            # Dibujado del vector de desplazamiento suavizado (Anti-Aliasing)
+            cv2.polylines(lienzo_bgr, [pts], isClosed=False, color=COLOR_TRACK_LINE, thickness=GROSOR_LINEA, lineType=cv2.LINE_AA)
+
+        # 6. Inserción de la anotación temporal (Frame Label)
+        texto = f"Frame {t + 1}"
+        fuente = cv2.FONT_HERSHEY_SIMPLEX
+        escala = 0.8
+        grosor = 2
+        (text_width, text_height), baseline = cv2.getTextSize(texto, fuente, escala, grosor)
+        
+        x = w - text_width - 15
+        y = h - 15
+        
+        cv2.rectangle(lienzo_bgr, (x - 5, y - text_height - 5), (x + text_width + 5, y + baseline), (0, 0, 0), -1)
+        cv2.putText(lienzo_bgr, texto, (x, y), fuente, escala, (255, 255, 255), grosor, cv2.LINE_AA)
+
+        paneles.append(lienzo_bgr)
+
+    # 7. Concatenación de los paneles individuales en una figura única (Composición Horizontal)
+    print("Ensamblando panel final y calibrando escala espacial...")
+    panel_final = np.hstack(paneles)
+    panel_h, panel_w = panel_final.shape[:2]
+
+    # 8. Renderizado de la barra de escala física (Esquina superior derecha)
+    bar_width_px = int(DESIRED_SCALE_UM / PIXEL_SIZE_UM) 
+    bar_height = 8 
+    margin = 20    
+    
+    x_end = panel_w - margin
+    x_start = x_end - bar_width_px
+
+    # Cálculo volumétrico del espacio tipográfico para alinear el texto de la escala
+    texto_escala = f"{DESIRED_SCALE_UM} um" 
+    escala_fuente_escala = 0.7
+    grosor_fuente_escala = 2
+    (s_text_width, s_text_height), s_baseline = cv2.getTextSize(texto_escala, fuente, escala_fuente_escala, grosor_fuente_escala)
+
+    text_y_escala = margin + s_text_height
+    y_start = text_y_escala + 10
+    y_end = y_start + bar_height
+    
+    # Renderizado del bloque de la escala
+    cv2.rectangle(panel_final, (x_start, y_start), (x_end, y_end), (255, 255, 255), -1)
+    
+    text_x_escala = x_start + (bar_width_px - s_text_width) // 2
+    
+    # Aplicación de sombra paralela para garantizar el contraste de lectura sobre la imagen base
+    cv2.putText(panel_final, texto_escala, (text_x_escala + 1, text_y_escala + 1), fuente, escala_fuente_escala, (0, 0, 0), grosor_fuente_escala + 1, cv2.LINE_AA)
+    cv2.putText(panel_final, texto_escala, (text_x_escala, text_y_escala), fuente, escala_fuente_escala, (255, 255, 255), grosor_fuente_escala, cv2.LINE_AA)
+
+    # 9. Exportación del archivo final (Uso de imencode para prevenir errores de codificación de ruta en Windows)
+    ruta_absoluta = os.path.abspath(OUTPUT_PATH)
+    carpeta_destino = os.path.dirname(ruta_absoluta)
+
+    if not os.path.exists(carpeta_destino):
+        os.makedirs(carpeta_destino)
+
+    exito, buffer_img = cv2.imencode(".png", panel_final)
+    
+    if exito:
+        with open(ruta_absoluta, "wb") as f:
+            f.write(buffer_img)
+        print(f"✅ Panel consolidado exportado con éxito en:\n👉 {ruta_absoluta}")
+    else:
+        print("❌ Fallo en la codificación binaria de la imagen.")
+
+if __name__ == "__main__":
+    main()

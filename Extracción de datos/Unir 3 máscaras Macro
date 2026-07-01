@@ -1,0 +1,247 @@
+import tifffile
+import numpy as np
+from skimage.measure import label, regionprops
+from skimage.morphology import binary_dilation, disk
+from tqdm import tqdm
+import os
+import glob
+import sys
+
+# =============================================================================
+# 1. CONFIGURACIÓN
+# =============================================================================
+
+# Directorio de entrada con los datos originales (salida de Nellie)
+CARPETA_RAIZ_BUSQUEDA = r"Project001"
+
+# Directorio principal de salida
+CARPETA_SALIDA_PRINCIPAL = r"Project001 Máscaras 3 Capas lng_adaptive"
+
+# Parámetros para el filtrado morfológico
+AREA_MINIMA = 50      # Píxeles
+DISTANCIA_MAXIMA = 5  # Píxeles
+
+
+# =============================================================================
+# 2. LÓGICA DE CLUSTERING
+# =============================================================================
+
+def procesar_clusters_mitocondriales(labels_frame, min_area, max_dist):
+    """
+    1. Se separan los objetos detectados según un umbral de área (Grandes vs Pequeños).
+    2. Los objetos sub-umbral se agrupan por proximidad espacial mediante dilatación morfológica.
+    3. Si un grupo resultante intersecta con un objeto mayor, se fusiona heredando su identificador.
+    4. Las agrupaciones aisladas que no contactan con estructuras principales se descartan (filtrado de ruido).
+    """
+    
+    # A. Inicialización de matrices de trabajo
+    alto, ancho = labels_frame.shape
+    labels_final = np.zeros((alto, ancho), dtype=np.uint16)
+    
+    mask_peques = np.zeros((alto, ancho), dtype=bool)
+    mask_grandes = np.zeros((alto, ancho), dtype=bool)
+    mapa_ids_grandes = np.zeros((alto, ancho), dtype=np.uint16)
+
+    # B. Clasificación de objetos según tamaño
+    props = regionprops(labels_frame)
+    if not props:
+        return labels_frame
+    
+    # Se registra el ID máximo de las estructuras principales para evitar colisiones numéricas
+    max_id_actual = 0
+    
+    for region in props:
+        # Se evalúa únicamente el área de los objetos que superan el umbral
+        if region.area >= min_area:
+            if region.label > max_id_actual:
+                max_id_actual = region.label
+            
+            coords = region.coords
+            mask_grandes[coords[:, 0], coords[:, 1]] = True
+            labels_final[coords[:, 0], coords[:, 1]] = region.label
+            mapa_ids_grandes[coords[:, 0], coords[:, 1]] = region.label
+        else:
+            # Elemento sub-umbral: se asigna a la máscara secundaria para su posterior evaluación
+            coords = region.coords
+            mask_peques[coords[:, 0], coords[:, 1]] = True
+
+    # C. Agrupación por proximidad (Clustering)
+    radio_dilatacion = int(max_dist / 2) + 1
+    selem = disk(radio_dilatacion)
+    peques_dilatados = binary_dilation(mask_peques, footprint=selem)
+    
+    labels_nubes = label(peques_dilatados, connectivity=1)
+    props_nubes = regionprops(labels_nubes)
+    
+    # D. Procesamiento individual de cada agrupación (nube)
+    for nube in props_nubes:
+        mask_nube_actual = (labels_nubes == nube.label)
+        
+        # Evaluación de intersecciones con estructuras principales
+        interseccion = mask_nube_actual & mask_grandes
+        ids_grandes_vecinos = np.unique(mapa_ids_grandes[interseccion])
+        ids_grandes_vecinos = ids_grandes_vecinos[ids_grandes_vecinos != 0]
+        
+        id_destino = 0
+        
+        if len(ids_grandes_vecinos) > 0:
+            # --- CASO 1: Contacto con estructura principal (Fusión) ---
+            mejor_vecino = ids_grandes_vecinos[0]
+            max_pixels_contacto = -1
+            
+            if len(ids_grandes_vecinos) > 1:
+                for vecino_id in ids_grandes_vecinos:
+                    pixels = np.sum((mapa_ids_grandes == vecino_id) & mask_nube_actual)
+                    if pixels > max_pixels_contacto:
+                        max_pixels_contacto = pixels
+                        mejor_vecino = vecino_id
+            
+            id_destino = mejor_vecino
+            
+        else:
+            # --- CASO 2: Ausencia de contacto (Filtrado de ruido) ---
+            id_destino = 0 
+            
+        # Actualización de la matriz final si se ha determinado una fusión válida
+        if id_destino > 0:
+            pixels_a_cambiar = mask_nube_actual & mask_peques
+            labels_final[pixels_a_cambiar] = id_destino
+
+    return labels_final
+
+
+# =============================================================================
+# 3. FUNCIÓN DE PROCESAMIENTO POR ARCHIVO
+# =============================================================================
+
+def procesar_video_triplet(path_z0, path_z1, path_z2, output_folder, video_name):
+    # --- Asignación dinámica de nomenclatura ---
+    # Se eliminan posibles espacios en blanco residuales del identificador
+    clean_name = video_name.strip()
+    nombre_archivo_salida = f"{clean_name}_Fusionado_3_Capas_Clusterizado.tif"
+    
+    ruta_guardado = os.path.join(output_folder, nombre_archivo_salida)
+
+    # Comprobación de existencia para evitar procesamientos redundantes
+    if os.path.exists(ruta_guardado):
+        print(f"   -> Ya existe, saltando: {video_name}")
+        return
+
+    # Carga de secuencias TIFF
+    try:
+        m0 = tifffile.imread(path_z0)
+        m1 = tifffile.imread(path_z1)
+        m2 = tifffile.imread(path_z2)
+    except Exception as e:
+        print(f"   ERROR cargando TIFFs para {video_name}: {e}")
+        return
+
+    # Validación de congruencia dimensional
+    if not (m0.shape == m1.shape == m2.shape):
+        print(f"   ERROR: Dimensiones no coinciden en {video_name}")
+        return
+
+    video_final = np.zeros(m0.shape, dtype=np.uint16)
+    num_frames = m0.shape[0]
+
+    # Iteración temporal (frame a frame)
+    # El parámetro leave=False limpia la salida por consola al finalizar cada archivo
+    for t in tqdm(range(num_frames), desc=f"   Procesando {clean_name}", leave=False):
+        
+        # 1. Fusión binaria de los 3 planos focales
+        b0 = m0[t] > 0
+        b1 = m1[t] > 0
+        b2 = m2[t] > 0
+        
+        union = b0 | b1 | b2
+        
+        # Etiquetado preliminar de componentes conectados
+        labels_raw = label(union, connectivity=1).astype(np.uint16)
+        
+        # 2. Ejecución del algoritmo de clustering morfológico
+        if np.max(labels_raw) > 0:
+            labels_procesados = procesar_clusters_mitocondriales(
+                labels_raw, 
+                min_area=AREA_MINIMA, 
+                max_dist=DISTANCIA_MAXIMA
+            )
+        else:
+            labels_procesados = labels_raw
+            
+        video_final[t] = labels_procesados
+
+    # Exportación de resultados
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder, exist_ok=True)
+
+    tifffile.imwrite(ruta_guardado, video_final, compression='zlib')
+    print(f"   -> Guardado: {nombre_archivo_salida}")
+
+
+# =============================================================================
+# 4. EJECUCIÓN BATCH (AUTOMÁTICA)
+# =============================================================================
+
+def main():
+    print(f"--- INICIO DEL PROCESAMIENTO MASIVO ---")
+    print(f"Búsqueda de archivos inicializada en: {CARPETA_RAIZ_BUSQUEDA}")
+    
+    # 1. Búsqueda de archivos correspondientes al plano Z0 (instance_label.ome.tif)
+    # Patrón recursivo para localizar archivos con el marcador "Z0" y extensión de salida de Nellie
+    patron_busqueda = os.path.join(CARPETA_RAIZ_BUSQUEDA, "**", "*Z0*im_instance_label.ome.tif")
+    archivos_z0 = glob.glob(patron_busqueda, recursive=True)
+    
+    if not archivos_z0:
+        print("No se localizaron archivos Z0. Se requiere revisión de la ruta CARPETA_RAIZ_BUSQUEDA.")
+        return
+
+    print(f"Se detectaron {len(archivos_z0)} conjuntos potenciales de análisis.")
+
+    # 2. Iteración sobre cada conjunto detectado
+    for path_z0 in tqdm(archivos_z0, desc="Progreso Total"):
+        
+        # --- A. Inferencia de rutas para los planos Z1 y Z2 ---
+        # Se asume homogeneidad en la nomenclatura estructural: "... Z0 ..." -> "... Z1 ..."
+        # Sustitución sistemática de identificadores de plano
+        path_z1 = path_z0.replace(" Z0", " Z1").replace("_Z0_", "_Z1_")
+        path_z2 = path_z0.replace(" Z0", " Z2").replace("_Z0_", "_Z2_")
+        
+        # Verificación de integridad del triplete
+        if not os.path.exists(path_z1):
+            print(f"\nAVISO: Falta plano Z1 para {os.path.basename(path_z0)}")
+            continue
+        if not os.path.exists(path_z2):
+            print(f"\nAVISO: Falta plano Z2 para {os.path.basename(path_z0)}")
+            continue
+
+        # --- B. Extracción del identificador principal ---
+        # Ejemplo de estructura nominal esperada: Control_24H_001_Lng_adaptive_Z0_stack...
+        # Objetivo de extracción: Control_24H_001_Lng_adaptive
+        filename = os.path.basename(path_z0)
+        
+        # Estrategia de fragmentación basada en el marcador "_Z0_"
+        if "_Z0_" in filename:
+            nombre_video_limpio = filename.split("_Z0_")[0]
+        else:
+            # Alternativa genérica para nomenclaturas atípicas
+            nombre_video_limpio = os.path.splitext(filename)[0]
+
+        # --- C. Generación de rutas de salida ---
+        # Esquema de directorios anidados basado en el nombre del identificador
+        nombre_subcarpeta = f"Máscaras 3 Capas {nombre_video_limpio}"
+        ruta_salida_video = os.path.join(CARPETA_SALIDA_PRINCIPAL, nombre_subcarpeta)
+        
+        # --- D. Ejecución del procesamiento ---
+        procesar_video_triplet(
+            path_z0, 
+            path_z1, 
+            path_z2, 
+            ruta_salida_video, 
+            nombre_video_limpio
+        )
+
+    print("\n¡PROCESAMIENTO MASIVO COMPLETADO!")
+    print(f"Resultados exportados a: {os.path.abspath(CARPETA_SALIDA_PRINCIPAL)}")
+
+if __name__ == "__main__":
+    main()

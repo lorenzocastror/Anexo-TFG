@@ -30,7 +30,6 @@ graph LR
 
 ## Índice del pipeline
 
-0. Requisitos y Estructura del Proyecto
 1. Configuración del entorno
 2. Segmentación mitocondrial (Nellie)
 3. Unión lógica de máscaras
@@ -46,6 +45,9 @@ graph LR
 13. Ratio de movimiento
 14. Distancia al centro celular
 15. Análisis Estadístico
+Flujo de datos
+Requisitos y estructura
+Software utilizado
 
 ---
 

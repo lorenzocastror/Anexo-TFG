@@ -156,6 +156,22 @@ Finalmente, se realizó un análisis estadístico de los datos obtenidos anterio
 
 ---
 
+## Flujo de Datos y Extensiones
+
+Para garantizar la reproducibilidad del análisis, la siguiente tabla detalla las dependencias de entrada y los formatos de exportación generados en cada etapa secuencial del *pipeline*:
+
+| Etapa del Pipeline | Archivo de Entrada | Archivo de Salida | Descripción |
+| :--- | :--- | :--- | :--- |
+| **1. Microscopía** | N/A | `.tif` | Vídeos RAW originales extraídos del microscopio confocal. |
+| **2. Segmentación (Nellie)** | `.tif` (RAW) | Máscaras `.tif` | Imágenes espaciales binarizadas con la morfología mitocondrial. |
+| **3. Tracking (Trackastra)** | Máscaras `.tif` | Múltiples `.xlsx` | Coordenadas espaciales (X, Y) y temporales (Frame) por célula. |
+| **4. Consolidación de Datos** | Múltiples `.xlsx` | `Master_Analisis.xlsx` | Matriz unificada y purgada con todas las trayectorias poblacionales. |
+| **5. Análisis y Métricas** | `Master_Analisis.xlsx` | `Metricas_Detalladas.xlsx` | Cálculo de velocidades, MSD, áreas y desplazamientos radiales. |
+| **6. Visualización Gráfica** | `Metricas_Detalladas.xlsx` | `.png` de alta resolución | Renderizado de SuperPlots, Boxplots e Histogramas de densidad. |
+| **7. Inferencia (GLMM)** | Excel de Métricas | Tablas SPSS | Validación estadística controlando el efecto aleatorio de la réplica. |
+
+---
+
 ### Requisitos y Estructura
 
 - Python 3.11

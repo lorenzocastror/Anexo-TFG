@@ -47,7 +47,7 @@ graph LR
 15. Análisis Estadístico
 Flujo de datos
 Requisitos y estructura
-Software utilizado
+Software utilizado 
 
 ---
 

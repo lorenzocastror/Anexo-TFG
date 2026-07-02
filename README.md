@@ -9,6 +9,27 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ---
 
+```mermaid
+graph TD
+    %% Nodos de la secuencia
+    A([Microscopía confocal]) --> B[Segmentación con Nellie]
+    B --> C[Fusión lógica de máscaras]
+    C --> D[Tracking con Trackastra]
+    D --> E[Reconexión de trayectorias]
+    E --> F[(Extracción de métricas)]
+    F --> G[Visualización]
+    G --> H{{Modelos Lineales Mixtos GLMM}}
+
+    %% Estilos de color para jerarquizar visualmente el flujo
+    style A fill:#2c3e50,stroke:#fff,stroke-width:2px,color:#fff
+    style B fill:#8a2be2,stroke:#fff,stroke-width:2px,color:#fff
+    style D fill:#ff8c00,stroke:#fff,stroke-width:2px,color:#fff
+    style F fill:#27ae60,stroke:#fff,stroke-width:2px,color:#fff
+    style H fill:#c0392b,stroke:#fff,stroke-width:2px,color:#fff
+```
+
+---
+
 ## Índice del pipeline
 
 0. Requisitos y Estructura del Proyecto
@@ -61,7 +82,7 @@ Este script realiza el tracking de las máscaras mitocondriales fusionadas previ
 ---
 
 ### 5. Unificación de las bases de datos de todos los vídeos
-Este script lleva a cabo la búsqueda, extracción y consolidación de los datos tabulares contenidos en los múltiples archivos Excel generados a lo largo del proyecto. Recorre de forma recursiva la estructura de directorios aplicando filtros de exclusión precisos para descartar archivos temporales, copias de seguridad y carpetas de versiones anteriores. A partir de los archivos validados, extrae las hojas específicas de trayectorias de interés y datos celulares, asignando a cada registro el identificador de su vídeo correspondiente. Tras concatenar toda la información, el módulo ejecuta un control de calidad sistemático para eliminar posibles filas duplicadas y exporta una única matriz maestra en formato Excel que centraliza la totalidad de las observaciones poblacionales listas para el análisis estadístico global.
+Este script consolida automáticamente las tablas generadas para cada vídeo en una única base de datos maestra, incorpora los identificadores experimentales y realiza controles básicos de calidad antes de exportar la matriz final para el análisis estadístico.
 
 `Extracción de datos\Unificación Resultados`
 

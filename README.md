@@ -9,6 +9,15 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 
 ---
 
+graph TD;
+    Inicio --> Proceso1;
+    Proceso1 -->|Condición Sí| Fin;
+    Proceso1 -->|Condición No| Error;
+    Error --> Inicio;
+
+
+
+
 ## Índice del pipeline
 
 0. Requisitos y Estructura del Proyecto

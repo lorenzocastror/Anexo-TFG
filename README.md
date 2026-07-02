@@ -43,7 +43,7 @@ graph LR
 10. SuperPlots
 11. Curvas MSD
 12. Histogramas de desplazamientos
-13. Ratio de movilidad
+13. Ratio de movimiento
 14. Distancia al centro celular
 15. Análisis Estadístico
 
@@ -115,39 +115,39 @@ Este script automatiza la generación y exportación de gráficos estadísticos 
 
 ---
 
-### 10. Generación de Superplots
-Este script genera automáticamente SuperPlots para las principales variables del análisis mitocondrial, produciendo tanto comparaciones globales entre condiciones experimentales como análisis independientes de los grupos control. Para cada variable se generan dos figuras: una comparando el grupo control global con los grupos silenciados y otra evaluando exclusivamente la variabilidad entre los distintos controles temporales.
-
-
-`Visualización de datos\Superplots`
-
----
-
-### 11. Generación de los Gráficos del MSD
+### 10. Generación de los Gráficos del MSD
 Este script genera figuras de las curvas de Desplazamiento Cuadrático Medio (MSD, Mean Squared Displacement) para evaluar la dinámica mitocondrial en los distintos grupos experimentales. A partir de las curvas promedio obtenidas para cada condición, calcula el exponente de difusión (α) mediante una regresión lineal en escala logarítmica sobre los primeros retardos temporales. Además, estima una aproximación del ruido de localización a partir del intercepto de la regresión y exporta estos valores a un archivo Excel. El script genera tanto gráficos individuales para cada grupo experimental como una figura comparativa con todas las curvas MSD.
 
 `Visualización de datos\Gráficos MSD`
 
 ---
 
-### 12. Generación de los Histogramas de Desplazamientos mitocondriales
+### 11. Generación de los Histogramas de Desplazamientos mitocondriales
 Este script cuantifica los desplazamientos instantáneos de las trayectorias mitocondriales obtenidas durante el seguimiento temporal. Para cada trayectoria se calcula la distancia recorrida entre fotogramas consecutivos, construyendo posteriormente histogramas individuales, por vídeo y por grupo experimental. Además, se genera un Excel que recoge la frecuencia de desplazamientos en intervalos espaciales definidos.
 
 `Visualización de datos\Histogramas Desplazamiento Mitocondrial`
 
 ---
 
-### 13. Obtención de la base de datos del Ratio de Movimiento
-Este script calcula el ratio de movilidad mitocondrial para cada vídeo a partir de las distribuciones de desplazamiento previamente obtenidas, utilizando un umbral espacial definido (0.2 micras).
+### 12. Obtención de la base de datos del Ratio de Movimiento
+Este script calcula el ratio de movimiento mitocondrial para cada vídeo a partir de las distribuciones de desplazamiento previamente obtenidas, utilizando un umbral espacial definido (0.2 micras).
 
 `Extracción de datos\Obtención Ratios de movimiento`
 
 ---
 
-### 14. Obtención de la base de datos de la Distancia al Centro
+### 13. Obtención de la base de datos de la Distancia al Centro
 Este script exporta un Excel con la distancia media de cada mitocondria al centro de masa celular a lo largo de su trayectoria, utilizando simultáneamente la información de las trayectorias mitocondriales y de la segmentación celular. Además de la distancia absoluta (µm), el algoritmo calcula una distancia normalizada respecto al tamaño celular.
 
 `Extracción de datos\Obtención Distancia al Centro`
+
+---
+
+### 14. Generación de Superplots
+Este script genera automáticamente SuperPlots para las principales variables del análisis mitocondrial, produciendo tanto comparaciones globales entre condiciones experimentales como análisis independientes de los grupos control. Para cada variable se generan dos figuras: una comparando el grupo control global con los grupos silenciados y otra evaluando exclusivamente la variabilidad entre los distintos controles temporales.
+
+
+`Visualización de datos\Superplots`
 
 ---
 
@@ -160,15 +160,27 @@ Finalmente, se realizó un análisis estadístico de los datos obtenidos anterio
 
 Para garantizar la reproducibilidad del análisis, la siguiente tabla detalla las dependencias de entrada y los formatos de exportación generados en cada etapa secuencial del *pipeline*:
 
+## Flujo de Datos y Extensiones
+
+Para garantizar la reproducibilidad del análisis, la siguiente tabla detalla de forma exhaustiva las dependencias de entrada y los formatos de exportación generados en cada una de las 15 etapas secuenciales del *pipeline*:
+
 | Etapa del Pipeline | Archivo de Entrada | Archivo de Salida | Descripción |
 | :--- | :--- | :--- | :--- |
-| **1. Microscopía** | N/A | `.tif` | Vídeos RAW originales extraídos del microscopio confocal. |
-| **2. Segmentación (Nellie)** | `.tif` (RAW) | Máscaras `.tif` | Imágenes espaciales binarizadas con la morfología mitocondrial. |
-| **3. Tracking (Trackastra)** | Máscaras `.tif` | Múltiples `.xlsx` | Coordenadas espaciales (X, Y) y temporales (Frame) por célula. |
-| **4. Consolidación de Datos** | Múltiples `.xlsx` | `Master_Analisis.xlsx` | Matriz unificada y purgada con todas las trayectorias poblacionales. |
-| **5. Análisis y Métricas** | `Master_Analisis.xlsx` | `Metricas_Detalladas.xlsx` | Cálculo de velocidades, MSD, áreas y desplazamientos radiales. |
-| **6. Visualización Gráfica** | `Metricas_Detalladas.xlsx` | `.png` de alta resolución | Renderizado de SuperPlots, Boxplots e Histogramas de densidad. |
-| **7. Inferencia (GLMM)** | Excel de Métricas | Tablas SPSS | Validación estadística controlando el efecto aleatorio de la réplica. |
+| **1. Microscopía Confocal** | N/A | `.tif` | Vídeos RAW originales extraídos del microscopio (planos focales Z0, Z1, Z2). |
+| **2. Segmentación (Nellie)** | `.tif` (RAW) | Máscaras `.tif` | Segmentación y reconstrucción de la red mitocondrial independiente por plano focal. |
+| **3. Unión Lógica de Máscaras** | Máscaras `.tif` (Z0, Z1, Z2) | `.tif` (Máscara 2D+t) | Fusión morfológica de los planos focales, conexión de componentes y filtrado de ruido. |
+| **4. Tracking (Trackastra)** | `.tif` (Máscara unificada) | Múltiples `.xlsx`, `.tif`, script `.py` | Trayectorias de las mitocondrias, reconexión espacial/temporal y visualización para Napari. |
+| **5. Unificación de BDs** | Múltiples `.xlsx` (Tracking) | `Master_Analisis.xlsx` | Base de datos con los identificadores experimentales de todos los vídeos. |
+| **6. Métricas Iniciales** | `Master_Analisis.xlsx` | `Metricas_Detalladas.xlsx` | Extracción de variables cinemáticas, dinámica radial y curvas base del Desplazamiento Cuadrático Medio (MSD). |
+| **7. Métricas >10 frames** | `Master_Analisis.xlsx` | Excel de Métricas (>10 frames) | Filtrado para evaluar exclusivamente las trayectorias mitocondriales estables en >10 frames. |
+| **8. Secuencias Visuales** | RAW `.tif`, Máscaras `.tif`, Trayectorias `.xlsx` | Imágenes `.png` | Imágenes representativas de las trayectorias. |
+| **9. Boxplots Descriptivos** | `Metricas_Detalladas.xlsx` | Gráficos `.png`| Diagramas de caja para las variables morfológicas y cinemáticas. |
+| **10. Gráficos MSD** | `Metricas_Detalladas.xlsx` | Gráficos `.png`, Data `.xlsx` | Curvas de difusión, exponente α y extracción del intercepto (ruido de localización). |
+| **11. Histogramas** | `Master_Analisis.xlsx` | Gráficos `.png`, Frecuencias `.xlsx` | Densidades de probabilidad de los desplazamientos entre fotogramas. |
+| **12. Ratio de Movimiento** | `.xlsx` (Frecuencias/Desplazamientos)| Ratio de Movimiento `.xlsx` | Base de datos con los ratios de movimiento por mitocondria. |
+| **13. Distancia al Centro** | Trayectorias `.xlsx`, Segmentación celular | Distancia al Centro `.xlsx` | Cálculo matricial de distancias absolutas (µm) y normalizadas al centro de masa celular. |
+| **14. SuperPlots** | `Metricas_Detalladas.xlsx`, Distancia al Centro `.xlsx`, Ratio de Movimiento `.xlsx` | Gráficos `.png`| Superplots para comparaciones globales inter-grupo y entre los controles. |
+| **15. Inferencia (SPSS)** | Matrices `.xlsx` finales | Contrastes de Hipótesis | Análisis estadístico inferencial |
 
 ---
 

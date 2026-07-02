@@ -14,10 +14,9 @@ graph TD
     %% Nodos de la secuencia
     A([Microscopía confocal]) --> B[Segmentación con Nellie]
     B --> C[Fusión lógica de máscaras]
-    C --> D[Tracking con Trackastra]
-    D --> E[Reconexión de trayectorias]
-    E --> F[(Extracción de métricas)]
-    F --> G[Visualización]
+    C --> D[Tracking con Trackastra + Unión de trayectorias]
+    D --> E[(Extracción de métricas)]
+    E --> F[Visualización]
     G --> H{{Modelos Lineales Mixtos GLMM}}
 
     %% Estilos de color para jerarquizar visualmente el flujo

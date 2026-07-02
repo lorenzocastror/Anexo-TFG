@@ -28,7 +28,7 @@ graph LR
 ```
 ---
 
-## Índice del pipeline
+## Índice
 
 **1. Configuración del entorno**
 <br>**2. Segmentación mitocondrial (Nellie)**

@@ -45,9 +45,9 @@ graph LR
 13. Ratio de movimiento
 14. Distancia al centro celular
 15. Análisis Estadístico
-Flujo de datos
-Requisitos y estructura
-Software utilizado 
+\Flujo de datos
+\Requisitos y estructura
+\Software utilizado 
 
 ---
 

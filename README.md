@@ -45,6 +45,7 @@ graph LR
 12. Histogramas de desplazamientos
 13. Ratio de movilidad
 14. Distancia al centro celular
+15. Análisis Estadístico
 
 ---
 
@@ -147,6 +148,11 @@ Este script calcula el ratio de movilidad mitocondrial para cada vídeo a partir
 Este script exporta un Excel con la distancia media de cada mitocondria al centro de masa celular a lo largo de su trayectoria, utilizando simultáneamente la información de las trayectorias mitocondriales y de la segmentación celular. Además de la distancia absoluta (µm), el algoritmo calcula una distancia normalizada respecto al tamaño celular.
 
 `Extracción de datos\Obtención Distancia al Centro`
+
+---
+
+### 15. Análisis Estadístico
+Finalmente, se realizó un análisis estadístico de los datos obtenidos anteriormente en este Pipeline mediante SPSS.
 
 ---
 

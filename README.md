@@ -156,7 +156,7 @@ Finalmente, se realizó un análisis estadístico de los datos obtenidos anterio
 
 ---
 
-## Flujo de Datos
+### Flujo de Datos
 | Etapa del Pipeline | Archivo de Entrada | Archivo de Salida | Descripción |
 | :--- | :--- | :--- | :--- |
 | **1. Microscopía Confocal** | N/A | `.tif` | Vídeos RAW originales extraídos del microscopio (planos focales Z0, Z1, Z2). |

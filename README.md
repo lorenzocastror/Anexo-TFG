@@ -31,21 +31,24 @@ graph LR
 ## Índice del pipeline
 
 0. Requisitos y Estructura del Proyecto
+   `Nellie\nellie\Segmentación Mitocondrial Nellie.py`
 1. Configuración del entorno
-2. Segmentación mitocondrial (Nellie)
-3. Unión lógica de máscaras
-4. Tracking mitocondrial (Trackastra)
-5. Unificación de resultados
-6. Obtención de métricas
-7. Obtención de métricas (>10 frames)
-8. Generación de figuras para la memoria
-9. Boxplots descriptivos
-10. SuperPlots
-11. Curvas MSD
-12. Histogramas de desplazamientos
-13. Ratio de movilidad
-14. Distancia al centro celular
-15. Análisis Estadístico
+   `Nellie\nellie\Segmentación Mitocondrial Nellie.py`
+3. Segmentación mitocondrial (Nellie)
+   `Nellie\nellie\Segmentación Mitocondrial Nellie.py`
+5. Unión lógica de máscaras
+6. Tracking mitocondrial (Trackastra)
+7. Unificación de resultados
+8. Obtención de métricas
+9. Obtención de métricas (>10 frames)
+10. Generación de figuras para la memoria
+11. Boxplots descriptivos
+12. SuperPlots
+13. Curvas MSD
+14. Histogramas de desplazamientos
+15. Ratio de movilidad
+16. Distancia al centro celular
+17. Análisis Estadístico
 
 ---
 

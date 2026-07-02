@@ -31,20 +31,20 @@ graph LR
 ## Índice del pipeline
 
 **1. Configuración del entorno**
-**2. Segmentación mitocondrial (Nellie)**
-**3. Unión lógica de máscaras**
-**4. Tracking mitocondrial (Trackastra)**
-**5. Unificación de resultados**
-**6. Obtención de métricas**
-**7. Obtención de métricas (>10 frames)**
-**8. Generación de figuras para la memoria**
-**9. Boxplots descriptivos**
-**10. SuperPlots**
-**11. Curvas MSD**
-**12. Histogramas de desplazamientos**
-**13. Ratio de movimiento**
-**14. Distancia al centro celular**
-**15. Análisis Estadístico**
+<br>**2. Segmentación mitocondrial (Nellie)**
+<br>**3. Unión lógica de máscaras**
+<br>**4. Tracking mitocondrial (Trackastra)**
+<br>**5. Unificación de resultados**
+<br>**6. Obtención de métricas**
+<br>**7. Obtención de métricas (>10 frames)**
+<br>**8. Generación de figuras para la memoria**
+<br>**9. Boxplots descriptivos**
+<br>**10. SuperPlots**
+<br>**11. Curvas MSD**
+<br>**12. Histogramas de desplazamientos**
+<br>**13. Ratio de movimiento**
+<br>**14. Distancia al centro celular**
+<br>**15. Análisis Estadístico**
 <br>**Flujo de datos**
 <br>**Requisitos y estructura**
 <br>**Software utilizado**

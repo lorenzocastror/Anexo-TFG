@@ -156,7 +156,7 @@ Este script genera automáticamente SuperPlots para las principales variables de
 ### 15. Análisis Estadístico
 Finalmente, se realizó un análisis estadístico de los datos obtenidos anteriormente en este Pipeline mediante SPSS.
 
-<br><br><br>
+<br>
 
 ---
 

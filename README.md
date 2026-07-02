@@ -156,14 +156,7 @@ Finalmente, se realizó un análisis estadístico de los datos obtenidos anterio
 
 ---
 
-## Flujo de Datos y Extensiones
-
-Para garantizar la reproducibilidad del análisis, la siguiente tabla detalla las dependencias de entrada y los formatos de exportación generados en cada etapa secuencial del *pipeline*:
-
-## Flujo de Datos y Extensiones
-
-Para garantizar la reproducibilidad del análisis, la siguiente tabla detalla de forma exhaustiva las dependencias de entrada y los formatos de exportación generados en cada una de las 15 etapas secuenciales del *pipeline*:
-
+## Flujo de Datos
 | Etapa del Pipeline | Archivo de Entrada | Archivo de Salida | Descripción |
 | :--- | :--- | :--- | :--- |
 | **1. Microscopía Confocal** | N/A | `.tif` | Vídeos RAW originales extraídos del microscopio (planos focales Z0, Z1, Z2). |

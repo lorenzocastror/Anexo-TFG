@@ -47,28 +47,28 @@ Este script automatiza la ejecución de la pipeline de Nellie sobre las secuenci
 ---
 
 ### 3. Unión Lógica de las Máscaras Mitocondriales
-Este script automatiza la fusión y el procesamiento de las máscaras mitocondriales generadas por Nellie en tres planos focales (Z0, Z1 y Z2). Para cada fotograma, combina las segmentaciones de los tres planos, identifica componentes conectados y aplica un algoritmo de unión morfológica que fusiona estructuras mitocondriales próximas, preservando los objetos principales y eliminando pequeñas detecciones aisladas consideradas ruido. El procesamiento genera una secuencia TIFF etiquetada (2D + tiempo) para cada vídeo.
+Este script consolida la fusión y el procesamiento de las máscaras mitocondriales generadas por Nellie en tres planos focales (Z0, Z1 y Z2). Para cada fotograma, combina las segmentaciones de los tres planos, identifica componentes conectados y aplica un algoritmo de unión morfológica que fusiona estructuras mitocondriales próximas, preservando los objetos principales y eliminando pequeñas detecciones aisladas consideradas ruido. El procesamiento genera una secuencia TIFF etiquetada (2D + tiempo) para cada vídeo.
 
 `Extracción de datos\Unión Lógica de Máscaras`
 
 ---
 
 ### 4. Tracking Mitocondrial mediante Trackastra + Unión de Trayectorias
-Este script automatiza el tracking de las máscaras mitocondriales fusionadas previamente. Para cada secuencia, aplica el modelo de aprendizaje profundo Trackastra para enlazar los orgánulos a lo largo del tiempo, calcula sus propiedades morfológicas y dinámicas en cada fotograma, y ejecuta un algoritmo de fusión de trayectorias que las reconecta basándose en la distancia espacial y la persistencia temporal. Este genera para cada secuencia un archivo Excel, una secuencia TIFF etiquetada con los identificadores y un script para la visualización de los resultados en Napari.
+Este script realiza el tracking de las máscaras mitocondriales fusionadas previamente. Para cada secuencia, aplica el modelo de aprendizaje profundo Trackastra para enlazar los orgánulos a lo largo del tiempo, calcula sus propiedades morfológicas y dinámicas en cada fotograma, y ejecuta un algoritmo de fusión de trayectorias que las reconecta basándose en la distancia espacial y la persistencia temporal. Este genera para cada secuencia un archivo Excel, una secuencia TIFF etiquetada con los identificadores y un script para la visualización de los resultados en Napari.
 
 `Extracción de datos\Tracking Mitocondrial con Trackastra`
 
 ---
 
 ### 5. Unificación de las bases de datos de todos los vídeos
-Este script automatiza la búsqueda, extracción y consolidación de los datos tabulares contenidos en los múltiples archivos Excel generados a lo largo del proyecto. Recorre de forma recursiva la estructura de directorios aplicando filtros de exclusión precisos para descartar archivos temporales, copias de seguridad y carpetas de versiones anteriores. A partir de los archivos validados, extrae las hojas específicas de trayectorias de interés y datos celulares, asignando a cada registro el identificador de su vídeo correspondiente. Tras concatenar toda la información, el módulo ejecuta un control de calidad sistemático para eliminar posibles filas duplicadas y exporta una única matriz maestra en formato Excel que centraliza la totalidad de las observaciones poblacionales listas para el análisis estadístico global.
+Este script lleva a cabo la búsqueda, extracción y consolidación de los datos tabulares contenidos en los múltiples archivos Excel generados a lo largo del proyecto. Recorre de forma recursiva la estructura de directorios aplicando filtros de exclusión precisos para descartar archivos temporales, copias de seguridad y carpetas de versiones anteriores. A partir de los archivos validados, extrae las hojas específicas de trayectorias de interés y datos celulares, asignando a cada registro el identificador de su vídeo correspondiente. Tras concatenar toda la información, el módulo ejecuta un control de calidad sistemático para eliminar posibles filas duplicadas y exporta una única matriz maestra en formato Excel que centraliza la totalidad de las observaciones poblacionales listas para el análisis estadístico global.
 
 `Extracción de datos\Unificación Resultados`
 
 ---
 
 ### 6. Obtención de la base de datos con las Métricas Iniciales
-Este script automatiza la extracción detallada de las métricas dinámicas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, calcula el Desplazamiento Cuadrático Medio poblacional (MSD). El código xporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD.
+Este script efectúa la extracción detallada de las métricas dinámicas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, calcula el Desplazamiento Cuadrático Medio poblacional (MSD). El código xporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD.
 
 `Extracción de datos\Obtención Métricas`
 

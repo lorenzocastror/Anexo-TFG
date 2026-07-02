@@ -17,7 +17,7 @@ graph TD
     C --> D[Tracking con Trackastra + Unión de trayectorias]
     D --> E[(Extracción de métricas)]
     E --> F[Visualización]
-    G --> H{{Modelos Lineales Mixtos GLMM}}
+    F --> G{{Modelos Lineales Mixtos GLMM}}
 
     %% Estilos de color para jerarquizar visualmente el flujo
     style A fill:#2c3e50,stroke:#fff,stroke-width:2px,color:#fff

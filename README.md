@@ -10,7 +10,7 @@ El presente repositorio contiene el conjunto de herramientas computacionales, sc
 ---
 
 ```mermaid
-graph TD
+graph LR
     %% Nodos de la secuencia
     A([Microscopía confocal]) --> B[Segmentación con Nellie]
     B --> C[Fusión lógica de máscaras]

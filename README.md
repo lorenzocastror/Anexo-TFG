@@ -26,7 +26,6 @@ graph LR
     style F fill:#27ae60,stroke:#fff,stroke-width:2px,color:#fff
     style G fill:#c0392b,stroke:#fff,stroke-width:2px,color:#fff
 ```
-
 ---
 
 ## Índice del pipeline

@@ -173,18 +173,18 @@ Finalmente, se realizó un análisis estadístico de los datos obtenidos anterio
 | **2. Segmentación (Nellie)** | `.tif` (RAW) | Máscaras `.tif` | Segmentación y reconstrucción de la red mitocondrial independiente por plano focal. |
 | **3. Unión Lógica de Máscaras** | Máscaras `.tif` (Z0, Z1, Z2) | `.tif` (Máscara 2D+t) | Fusión morfológica de los planos focales, conexión de componentes y filtrado de ruido. |
 | **4. Tracking (Trackastra)** | `.tif` (Máscara unificada) | Múltiples `.xlsx`, `.tif`, script `.py` | Trayectorias de las mitocondrias, reconexión espacial/temporal y visualización para Napari. |
-| **5. Unificación de BDs** | Múltiples `.xlsx` (Tracking) | `Master_Analisis.xlsx` | Base de datos con los identificadores experimentales de todos los vídeos. |
-| **6. Métricas Iniciales** | `Master_Analisis.xlsx` | `Metricas.xlsx` | Extracción de variables cinemáticas, dinámica radial y curvas base del Desplazamiento Cuadrático Medio (MSD). |
-| **7. Métricas >10 frames** | `Master_Analisis.xlsx` | `Metricas_>10 frames.xlsx`| Filtrado para evaluar exclusivamente las trayectorias mitocondriales estables en >10 frames. |
-| **8. Secuencias Visuales** | RAW `.tif`, Máscaras `.tif`, Trayectorias `.xlsx` | Imágenes `.png` | Imágenes representativas de las trayectorias. |
-| **9. Boxplots Descriptivos** | `Metricas.xlsx` | Gráficos `.png`| Diagramas de caja para las variables morfológicas y cinemáticas. |
-| **10. Gráficos MSD** | `Metricas.xlsx` | Gráficos `.png`, Data `.xlsx` | Curvas de difusión, exponente α y extracción del intercepto (ruido de localización). |
-| **11. Histogramas** | `Master_Analisis.xlsx` | Gráficos `.png`, Frecuencias `.xlsx` | Densidades de probabilidad de los desplazamientos entre fotogramas. |
-| **12. Ratio de Movimiento** | `.xlsx` (Frecuencias/Desplazamientos)| Ratio de Movimiento `.xlsx` | Base de datos con los ratios de movimiento por mitocondria. |
-| **13. Distancia al Centro** | Trayectorias `.xlsx`, Segmentación celular | Distancia al Centro `.xlsx` | Cálculo matricial de distancias absolutas (µm) y normalizadas al centro de masa celular. |
-| **14. SuperPlots** | `Metricas.xlsx`, Distancia al Centro `.xlsx`, Ratio de Movimiento `.xlsx` | Gráficos `.png`| Superplots para comparaciones globales inter-grupo y entre los controles. |
-| **15. Inferencia (SPSS)** | Matrices `.xlsx` finales | Contrastes de Hipótesis | Análisis estadístico inferencial |
-
+| **5. Filtrado Espacial Booleano** | Tracking `.xlsx`, Máscaras `.tif` (manuales) | Matrices `.xlsx` (Limpias), Máscaras `.tif` (Corregidas) | Limpieza de máscaras celulares y filtrado para conservar exclusivamente mitocondrias intracelulares. |
+| **6. Unificación de BDs** | Múltiples `.xlsx` (Matrices Limpias) | `Master_Analisis.xlsx` | Base de datos maestra consolidando los identificadores experimentales y trayectorias de todos los vídeos. |
+| **7. Métricas Iniciales** | `Master_Analisis.xlsx` | `Metricas.xlsx` | Extracción de variables cinemáticas, dinámica radial y curvas base del Desplazamiento Cuadrático Medio (MSD). |
+| **8. Métricas >10 frames** | `Master_Analisis.xlsx` | `Metricas_>10 frames.xlsx`| Filtrado para evaluar exclusivamente las trayectorias mitocondriales estables en >10 frames. |
+| **9. Secuencias Visuales** | RAW `.tif`, Máscaras `.tif`, Trayectorias `.xlsx` | Imágenes `.png` | Imágenes representativas de las trayectorias. |
+| **10. Boxplots Descriptivos** | `Metricas.xlsx` | Gráficos `.png`| Diagramas de caja para las variables morfológicas y cinemáticas. |
+| **11. Gráficos MSD** | `Metricas.xlsx` | Gráficos `.png`, Data `.xlsx` | Curvas de difusión, exponente α y extracción del intercepto (ruido de localización). |
+| **12. Histogramas** | `Master_Analisis.xlsx` | Gráficos `.png`, Frecuencias `.xlsx` | Densidades de probabilidad de los desplazamientos entre fotogramas. |
+| **13. Ratio de Movimiento** | `.xlsx` (Frecuencias/Desplazamientos)| Ratio de Movimiento `.xlsx` | Base de datos con los ratios de movimiento por mitocondria. |
+| **14. Distancia al Centro** | Trayectorias `.xlsx`, Segmentación celular | Distancia al Centro `.xlsx` | Cálculo matricial de distancias absolutas (µm) y normalizadas al centro de masa celular. |
+| **15. SuperPlots** | `Metricas.xlsx`, Distancia al Centro `.xlsx`, Ratio de Movimiento `.xlsx` | Gráficos `.png`| Superplots para comparaciones globales inter-grupo y entre los controles. |
+| **16. Inferencia (SPSS)** | Matrices `.xlsx` finales | Contrastes de Hipótesis | Análisis estadístico inferencial mediante Modelos Lineales Mixtos Generalizados (GLMM). |
 ---
 
 ### Requisitos y Estructura

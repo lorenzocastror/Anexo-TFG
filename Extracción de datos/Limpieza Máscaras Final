@@ -1,0 +1,191 @@
+import tifffile
+import pandas as pd
+import numpy as np
+import os
+import glob
+from tqdm import tqdm
+from skimage.measure import label, regionprops
+
+# =============================================================================
+# 1. CONFIGURACIÓN DE RUTAS
+# =============================================================================
+
+# Carpeta donde están las máscaras de las mitocondrias Y TUS MÁSCARAS MANUALES
+CARPETA_MASCARAS_MANUALES = r"Videos_Mitocondrias\Project001 Máscaras 3 Capas lng_adaptive"
+
+# Carpeta de Entrada de Excels (Donde Trackastra guardó los trackings brutos)
+CARPETA_TRACKING_INPUT = r"Videos_Mitocondrias\Project001 Tracking Trackastra 3 Capas"
+
+# NUEVAS CARPETAS DE SALIDA
+CARPETA_MASCARAS_FINAL = r"Videos_Mitocondrias\Máscaras Final"
+CARPETA_MATRIZ_FINAL = r"Videos_Mitocondrias\Matrices Limpias Finales"
+
+# =============================================================================
+# 2. FUNCIÓN DE LIMPIEZA DE RUIDO (MANTIENE SOLO EL OBJETO PRINCIPAL)
+# =============================================================================
+
+def limpiar_mascara_manual(stack_mask):
+    """
+    Recorre el vídeo frame a frame y se queda únicamente con el objeto 
+    con mayor área, borrando píxeles sueltos o ruido manual.
+    """
+    stack_limpio = np.zeros_like(stack_mask, dtype=np.uint8)
+    
+    for t in range(stack_mask.shape[0]):
+        frame = stack_mask[t]
+        
+        # Binarizar el frame (por si al dibujar a mano se usaron grises)
+        frame_binario = frame > 0
+        
+        if not np.any(frame_binario):
+            continue # Frame vacío
+            
+        # Etiquetar todos los objetos independientes en el frame
+        objetos_etiquetados = label(frame_binario)
+        propiedades = regionprops(objetos_etiquetados)
+        
+        if propiedades:
+            # Encontrar el objeto con el área máxima (nuestra célula o núcleo real)
+            objeto_principal = max(propiedades, key=lambda x: x.area)
+            
+            # Crear una máscara donde solo el objeto principal sea 1
+            stack_limpio[t][objetos_etiquetados == objeto_principal.label] = 1
+            
+    return stack_limpio
+
+# =============================================================================
+# 3. LÓGICA PRINCIPAL POR VÍDEO
+# =============================================================================
+
+def procesar_video(nombre_video, ruta_mito, ruta_celula, ruta_nucleo):
+    print(f"\nProcesando: {nombre_video}")
+    
+    # 1. Cargar las 3 máscaras
+    stack_mito = tifffile.imread(ruta_mito)
+    stack_celula_raw = tifffile.imread(ruta_celula)
+    stack_nucleo_raw = tifffile.imread(ruta_nucleo)
+    
+    # Asegurar dimensiones (3D: Tiempo, Y, X)
+    if stack_mito.ndim == 2: stack_mito = stack_mito[np.newaxis, ...]
+    if stack_celula_raw.ndim == 2: stack_celula_raw = stack_celula_raw[np.newaxis, ...]
+    if stack_nucleo_raw.ndim == 2: stack_nucleo_raw = stack_nucleo_raw[np.newaxis, ...]
+    
+    min_frames = min(stack_mito.shape[0], stack_celula_raw.shape[0], stack_nucleo_raw.shape[0])
+    stack_mito = stack_mito[:min_frames]
+    stack_celula_raw = stack_celula_raw[:min_frames]
+    stack_nucleo_raw = stack_nucleo_raw[:min_frames]
+    
+    # 2. Limpiar Ruido de Células y Núcleos
+    print(" -> Limpiando ruido manual y aislando objetos principales...")
+    stack_celula_limpia = limpiar_mascara_manual(stack_celula_raw)
+    stack_nucleo_limpia = limpiar_mascara_manual(stack_nucleo_raw)
+    
+    # 3. Guardar las máscaras finales en la nueva carpeta
+    os.makedirs(CARPETA_MASCARAS_FINAL, exist_ok=True)
+    
+    tifffile.imwrite(os.path.join(CARPETA_MASCARAS_FINAL, f"{nombre_video}_Mascara_Mitocondrias.tif"), stack_mito, compression='zlib')
+    tifffile.imwrite(os.path.join(CARPETA_MASCARAS_FINAL, f"{nombre_video}_Mascara_Celula_Corregida.tif"), stack_celula_limpia, compression='zlib')
+    tifffile.imwrite(os.path.join(CARPETA_MASCARAS_FINAL, f"{nombre_video}_Mascara_Nucleo_Corregido.tif"), stack_nucleo_limpia, compression='zlib')
+    print(f" -> Máscaras guardadas en: {CARPETA_MASCARAS_FINAL}")
+    
+    # 4. Leer Datos de Tracking Brutos
+    carpeta_input_video = os.path.join(CARPETA_TRACKING_INPUT, f"{nombre_video}_Tracking_Trackastra_3_Capas")
+    nombre_excel_input = f"{nombre_video}_Tracking_Trackastra_3CAPAS_Fondo_lng.xlsx"
+    ruta_excel_input = os.path.join(carpeta_input_video, nombre_excel_input)
+    
+    if not os.path.exists(ruta_excel_input):
+        print(f"   [AVISO] No se encontró Excel de tracking en: {ruta_excel_input}")
+        return
+        
+    df_original = pd.read_excel(ruta_excel_input)
+    
+    # 5. Aplicar Filtro Booleano Espacial
+    print(" -> Aplicando filtro booleano espacial...")
+    datos_mitos_interes = []
+    datos_celula_frame = []
+    
+    for t in range(min_frames):
+        # A. Extraer datos morfológicos de la célula/núcleo limpia
+        props_cel = regionprops(label(stack_celula_limpia[t]))
+        props_nuc = regionprops(label(stack_nucleo_limpia[t]))
+        
+        # EL PARCHE: Forzamos matemáticamente a coger el área más grande, 
+        # ignorando cualquier píxel fantasma que haya quedado el índice 0.
+        area_celula = max([p.area for p in props_cel]) if props_cel else 0
+        area_nucleo = max([p.area for p in props_nuc]) if props_nuc else 0
+        area_cito = area_celula - area_nucleo
+        
+        centroid_cel = props_cel[0].centroid if props_cel else (0,0)
+        centroid_nuc = props_nuc[0].centroid if props_nuc else (0,0)
+        
+        datos_celula_frame.append({
+            'Frame': t,
+            'Area_Celula_px': area_celula,
+            'Area_Nucleo_px': area_nucleo,
+            'Area_Citoplasma_px': area_cito,
+            'Centro_Masa_Celula_Y': centroid_cel[0],
+            'Centro_Masa_Celula_X': centroid_cel[1]
+        })
+        
+        # B. Filtrar Mitocondrias (DENTRO célula, INCLUYENDO núcleo)
+        mitos_frame = df_original[df_original['Frame'] == t]
+        
+        mask_c = stack_celula_limpia[t] > 0
+        # Mantenemos mask_n calculada arriba porque la usas para calcular el área del citoplasma
+        
+        for index, row in mitos_frame.iterrows():
+            y, x = int(row['Pos_Y']), int(row['Pos_X'])
+            if 0 <= y < mask_c.shape[0] and 0 <= x < mask_c.shape[1]:
+                # NUEVA LÓGICA: Solo exigimos que esté dentro de la célula (mask_c es True)
+                # Ya no nos importa si recae sobre la máscara del núcleo
+                if mask_c[y, x]:
+                    datos_mitos_interes.append(row)
+                    
+    # 6. Guardar Matriz Limpia Final
+    os.makedirs(CARPETA_MATRIZ_FINAL, exist_ok=True)
+    df_mitos_interes = pd.DataFrame(datos_mitos_interes)
+    df_celula = pd.DataFrame(datos_celula_frame)
+    
+    ruta_excel_salida = os.path.join(CARPETA_MATRIZ_FINAL, f"{nombre_video}_Matriz_Limpia_Final.xlsx")
+    
+    with pd.ExcelWriter(ruta_excel_salida) as writer:
+        df_mitos_interes.to_excel(writer, sheet_name='Mitocondrias_Interes', index=False)
+        df_celula.to_excel(writer, sheet_name='Datos_Celula', index=False)
+        
+    print(f" -> Matriz generada con éxito: {nombre_video}_Matriz_Limpia_Final.xlsx")
+
+# =============================================================================
+# 4. EJECUCIÓN DEL SCRIPT
+# =============================================================================
+
+def main():
+    print("--- INICIANDO LIMPIEZA DE MÁSCARAS Y FILTRADO MATRICIAL ---")
+    
+    # Buscar los archivos de mitocondrias (como referencia del nombre base)
+    patron = os.path.join(CARPETA_MASCARAS_MANUALES, "**", "*_Fusionado_3_Capas_Clusterizado.tif")
+    archivos_mitos = glob.glob(patron, recursive=True)
+    
+    if not archivos_mitos:
+        print("No se encontraron máscaras de mitocondrias en la carpeta indicada.")
+        return
+        
+    for ruta_mito in tqdm(archivos_mitos, desc="Progreso Total"):
+        carpeta_actual = os.path.dirname(ruta_mito)
+        filename = os.path.basename(ruta_mito)
+        nombre_video = filename.replace("_lng_adaptive_Fusionado_3_Capas_Clusterizado.tif", "")
+        if "_Fusionado" in nombre_video:
+             nombre_video = nombre_video.split("_Fusionado")[0]
+             
+        # Buscar las máscaras manuales que corresponden a este vídeo
+        ruta_celula = os.path.join(carpeta_actual, f"{nombre_video}_Mascara_Celula.tif")
+        ruta_nucleo = os.path.join(carpeta_actual, f"{nombre_video}_Mascara_Nucleo.tif")
+        
+        if os.path.exists(ruta_celula) and os.path.exists(ruta_nucleo):
+            procesar_video(nombre_video, ruta_mito, ruta_celula, ruta_nucleo)
+        else:
+            print(f"\n[SKIP] Faltan las máscaras manuales de célula o núcleo para: {nombre_video}")
+            
+    print("\n--- PROCESO COMPLETADO ---")
+
+if __name__ == "__main__":
+    main()

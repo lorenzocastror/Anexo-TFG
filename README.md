@@ -34,17 +34,18 @@ graph LR
 <br>**2. Segmentación mitocondrial (Nellie)**
 <br>**3. Unión lógica de máscaras**
 <br>**4. Tracking mitocondrial (Trackastra)**
-<br>**5. Unificación de resultados**
-<br>**6. Obtención de métricas**
-<br>**7. Obtención de métricas (>10 frames)**
-<br>**8. Generación de figuras para la memoria**
-<br>**9. Boxplots descriptivos**
-<br>**10. SuperPlots**
-<br>**11. Curvas MSD**
-<br>**12. Histogramas de desplazamientos**
-<br>**13. Ratio de movimiento**
-<br>**14. Distancia al centro celular**
-<br>**15. Análisis Estadístico**
+<br>**5. Filtrado Espacial Booleano y Extracción de Datos Celulares
+<br>**6. Unificación de resultados**
+<br>**7. Obtención de métricas**
+<br>**8. Obtención de métricas (>10 frames)**
+<br>**9. Generación de figuras para la memoria**
+<br>**10. Boxplots descriptivos**
+<br>**11. SuperPlots**
+<br>**12. Curvas MSD**
+<br>**13. Histogramas de desplazamientos**
+<br>**14. Ratio de movimiento**
+<br>**15. Distancia al centro celular**
+<br>**16. Análisis Estadístico**
 <br>**Flujo de datos**
 <br>**Requisitos y estructura**
 <br>**Software utilizado**
@@ -82,70 +83,75 @@ Este script realiza el tracking de las máscaras mitocondriales fusionadas previ
 
 ---
 
-### 5. Unificación de las bases de datos de todos los vídeos
+### 5. Filtrado Espacial Booleano y Extracción de Datos Celulares
+Este script actúa como un filtro de calidad espacial que conecta los datos seguimiento (tracking) con la matriz analítica definitiva. Para cada vídeo, procesa y limpia las máscaras manuales de la célula y el núcleo, aislando únicamente la estructura principal para eliminar el ruido de dibujo. A continuación, extrae las métricas morfológicas globales y aplica un filtro que conserva las mitocondrias que están en la máscara de la célula. Finalmente, exporta las secuencias TIFF corregidas y genera un archivo Excel final que aísla las trayectorias mitocondriales válidas junto con la evolución morfológica de la célula.
+
+---
+
+### 6. Unificación de las bases de datos de todos los vídeos
 Este script consolida automáticamente las tablas generadas para cada vídeo en una única base de datos maestra, incorpora los identificadores experimentales y realiza controles básicos de calidad antes de exportar la matriz final para el análisis estadístico.
 
 `Extracción de datos\Unificación Resultados`
 
 ---
 
-### 6. Obtención de la base de datos con las Métricas Iniciales
+### 7. Obtención de la base de datos con las Métricas Iniciales
 Este script efectúa la extracción detallada de las métricas dinámicas y espaciales a partir de los datos de seguimiento mitocondrial previamente unificados. Para cada trayectoria, el algoritmo cuantifica parámetros físicos como la velocidad, el desplazamiento neto, el índice de direccionalidad y el área media, integrando simultáneamente las coordenadas del centroide celular para evaluar la dinámica radial y el radial bias de los orgánulos. Adicionalmente, calcula el Desplazamiento Cuadrático Medio poblacional (MSD). El código xporta todas las variables generadas a un nuevo archivo Excel estructurado en diferentes hojas de datos correspondientes a las métricas individuales por trayectoria y las curvas MSD.
 
 `Extracción de datos\Obtención Métricas`
 
 ---
 
-### 7. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias >10 frames
+### 8. Obtención de la base de datos con las Métricas Iniciales para las mitocondrias con trayectorias >10 frames
 Este script constituye una variante del cálculo de métricas descrito anteriormente, restringiendo el análisis exclusivamente a trayectorias con una duración superior a 10 fotogramas.
 
 `Extracción de datos\Obtención Métricas más de 10 frames`
 
 ---
 
-### 8. Generación de Secuencias Visuales para la memoria
+### 9. Generación de Secuencias Visuales para la memoria
 Este script genera una figura representativa de la dinámica mitocondrial a partir de secuencias de microscopía y los resultados del seguimiento obtenido con Trackastra. Para varios instantes temporales seleccionados, superpone la imagen de fluorescencia original, las máscaras de las mitocondrias segmentadas y las trayectorias acumuladas de los orgánulos, restringiendo el análisis a las mitocondrias contenidas dentro de la célula mediante la máscara celular.
 
 `Visualización de datos\Secuencia de Trayectorias para la memoria`
 
 ---
 
-### 9. Generación de los Boxplots de las Métricas Iniciales
+### 10. Generación de los Boxplots de las Métricas Iniciales
 Este script automatiza la generación y exportación de gráficos estadísticos descriptivos mediante boxplots para la evaluación visual de las variables morfológicas y dinámicas mitocondriales. 
 
 `Visualización de datos\Boxplots Descriptivos`
 
 ---
 
-### 10. Generación de los Gráficos del MSD
+### 11. Generación de los Gráficos del MSD
 Este script genera figuras de las curvas de Desplazamiento Cuadrático Medio (MSD, Mean Squared Displacement) para evaluar la dinámica mitocondrial en los distintos grupos experimentales. A partir de las curvas promedio obtenidas para cada condición, calcula el exponente de difusión (α) mediante una regresión lineal en escala logarítmica sobre los primeros retardos temporales. Además, estima una aproximación del ruido de localización a partir del intercepto de la regresión y exporta estos valores a un archivo Excel. El script genera tanto gráficos individuales para cada grupo experimental como una figura comparativa con todas las curvas MSD.
 
 `Visualización de datos\Gráficos MSD`
 
 ---
 
-### 11. Generación de los Histogramas de Desplazamientos mitocondriales
+### 12. Generación de los Histogramas de Desplazamientos mitocondriales
 Este script cuantifica los desplazamientos instantáneos de las trayectorias mitocondriales obtenidas durante el seguimiento temporal. Para cada trayectoria se calcula la distancia recorrida entre fotogramas consecutivos, construyendo posteriormente histogramas individuales, por vídeo y por grupo experimental. Además, se genera un Excel que recoge la frecuencia de desplazamientos en intervalos espaciales definidos.
 
 `Visualización de datos\Histogramas Desplazamiento Mitocondrial`
 
 ---
 
-### 12. Obtención de la base de datos del Ratio de Movimiento
+### 13. Obtención de la base de datos del Ratio de Movimiento
 Este script calcula el ratio de movimiento mitocondrial para cada vídeo a partir de las distribuciones de desplazamiento previamente obtenidas, utilizando un umbral espacial definido (0.2 micras).
 
 `Extracción de datos\Obtención Ratios de movimiento`
 
 ---
 
-### 13. Obtención de la base de datos de la Distancia al Centro
+### 14. Obtención de la base de datos de la Distancia al Centro
 Este script exporta un Excel con la distancia media de cada mitocondria al centro de masa celular a lo largo de su trayectoria, utilizando simultáneamente la información de las trayectorias mitocondriales y de la segmentación celular. Además de la distancia absoluta (µm), el algoritmo calcula una distancia normalizada respecto al tamaño celular.
 
 `Extracción de datos\Obtención Distancia al Centro`
 
 ---
 
-### 14. Generación de Superplots
+### 15. Generación de Superplots
 Este script genera automáticamente SuperPlots para las principales variables del análisis mitocondrial, produciendo tanto comparaciones globales entre condiciones experimentales como análisis independientes de los grupos control. Para cada variable se generan dos figuras: una comparando el grupo control global con los grupos silenciados y otra evaluando exclusivamente la variabilidad entre los distintos controles temporales.
 
 
@@ -153,7 +159,7 @@ Este script genera automáticamente SuperPlots para las principales variables de
 
 ---
 
-### 15. Análisis Estadístico
+### 16. Análisis Estadístico
 Finalmente, se realizó un análisis estadístico de los datos obtenidos anteriormente en este Pipeline mediante SPSS.
 
 <br>

@@ -34,7 +34,7 @@ graph LR
 <br>**2. Segmentación mitocondrial (Nellie)**
 <br>**3. Unión lógica de máscaras**
 <br>**4. Tracking mitocondrial (Trackastra)**
-<br>**5. Filtrado Espacial Booleano y Extracción de Datos Celulares
+<br>**5. Filtrado Espacial Booleano y Extracción de Datos Celulares**
 <br>**6. Unificación de resultados**
 <br>**7. Obtención de métricas**
 <br>**8. Obtención de métricas (>10 frames)**
